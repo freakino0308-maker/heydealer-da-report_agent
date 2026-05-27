@@ -37,7 +37,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 .sub-tab{padding:8px 16px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
 .sub-tab:hover{color:var(--text);}
 .sub-tab.active{color:var(--acc);border-bottom-color:var(--acc);}
-.filter-bar{display:flex;align-items:center;gap:10px;padding:12px 28px;background:var(--s1);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.filter-bar{display:flex;align-items:center;gap:10px;padding:12px 20px;background:var(--s1);border-bottom:1px solid var(--border);flex-wrap:wrap;}
 .fl{font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
 select,input[type=date]{background:var(--s2);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;outline:none;}
 select:focus,input[type=date]:focus{border-color:var(--acc);}
@@ -46,7 +46,7 @@ select:focus,input[type=date]:focus{border-color:var(--acc);}
 .fdiv{width:1px;height:18px;background:var(--border);}
 .qbtn{background:var(--s2);border:1px solid var(--border);color:var(--text2);font-family:var(--font);font-size:12px;padding:5px 10px;border-radius:5px;cursor:pointer;}
 .qbtn.active,.qbtn:hover{border-color:var(--acc);color:var(--acc);}
-.main{padding:24px 28px;}
+.main{padding:20px 24px;}
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;margin-bottom:24px;}
 .kpi-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:16px 16px 12px;position:relative;overflow:hidden;transition:border-color .2s;}
 .kpi-card:hover{border-color:var(--border2);}
@@ -111,6 +111,25 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;color
 .main-panel.active{display:block;}
 .section-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
 ::-webkit-scrollbar{width:5px;height:5px;}
+/* 좌측 세로 탭 레이아웃 */
+.content-wrapper{display:flex;min-height:calc(100vh - 160px);}
+.side-tab-bar{
+  width:130px;min-width:130px;
+  background:var(--s1);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:sticky;top:96px;height:calc(100vh - 96px);
+  overflow-y:auto;padding:8px 0;
+}
+.side-tab-bar .sub-tab{
+  padding:12px 16px;font-size:12px;font-weight:600;
+  color:var(--text2);cursor:pointer;
+  border-left:3px solid transparent;
+  border-bottom:none;
+  transition:all .15s;white-space:nowrap;
+}
+.side-tab-bar .sub-tab:hover{color:var(--text);background:var(--s2);}
+.side-tab-bar .sub-tab.active{color:var(--acc);border-left-color:var(--acc);background:var(--s2);}
+.content-area{flex:1;overflow:hidden;display:flex;flex-direction:column;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 </style>
@@ -133,13 +152,18 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;color
   <div class="main-tab active" data-main="mo">📱 모바일 <span class="tab-badge" style="background:rgba(0,212,160,.12);color:var(--acc)">MO</span></div>
   <div class="main-tab pc-tab" data-main="pc">🖥 PC <span class="tab-badge" style="background:rgba(77,159,255,.12);color:var(--acc2)">PC</span></div>
 </div>
-<div class="sub-tab-bar">
-  <div class="sub-tab active" data-sub="summary">Summary</div>
-  <div class="sub-tab" data-sub="campaigns">캠페인별</div>
-  <div class="sub-tab" data-sub="creatives">소재별</div>
-  <div class="sub-tab" data-sub="usp">USP별</div>
-  <div class="sub-tab" data-sub="weekcompare">주차별 비교</div>
-</div>
+<div class="content-wrapper">
+  <!-- 좌측 세로 탭 -->
+  <div class="side-tab-bar">
+    <div class="sub-tab active" data-sub="summary">Summary</div>
+    <div class="sub-tab" data-sub="campaigns">캠페인별</div>
+    <div class="sub-tab" data-sub="usp">USP별</div>
+    <div class="sub-tab" data-sub="creatives">소재별</div>
+    <div class="sub-tab" data-sub="budget">예산 소진</div>
+    <div class="sub-tab" data-sub="weekcompare">주차별 비교</div>
+  </div>
+  <!-- 우측 콘텐츠 -->
+  <div class="content-area">
 <div class="filter-bar" id="filterBar">
   <span class="fl">기간</span>
   <input type="date" id="startDate"/>
@@ -163,6 +187,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;color
     <div class="sub-panel" id="mo-creatives"></div>
     <div class="sub-panel" id="mo-usp"></div>
     <div class="sub-panel" id="mo-weekcompare"></div>
+    <div class="sub-panel" id="mo-budget"></div>
   </div>
   <div class="main-panel" id="main-pc">
     <div class="sub-panel active" id="pc-summary"></div>
@@ -170,6 +195,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;color
     <div class="sub-panel" id="pc-creatives"></div>
     <div class="sub-panel" id="pc-usp"></div>
     <div class="sub-panel" id="pc-weekcompare"></div>
+    <div class="sub-panel" id="pc-budget"></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal" style="display:none">
@@ -272,8 +298,8 @@ function gfaKeyStripped(r){
 // 상태
 // ══════════════════════════════════════
 const S={
-  gfa:[],af:[],ga:[],
-  afMap:{},gaMap:{},
+  gfa:[],af:[],ga:[],budget:[],
+  afMap:{},gaMap:{},budgetMap:{},
   startDate:null,endDate:null,
   mainTab:'mo',subTab:'summary',
   charts:{},sheetsId:null,
@@ -355,12 +381,22 @@ async function connectSheets(){
   setSt('⏳ 연결 중...','#7a8fad');
   document.getElementById('global-loading').style.display='flex';
   try{
-    const[gfa,af,ga]=await Promise.all([
+    const[gfa,af,ga,budget]=await Promise.all([
       loadSheet(S.sheetsId,'GFA_Raw',0),
       loadSheet(S.sheetsId,'AF_Raw',0),
       loadSheet(S.sheetsId,'GA_Raw',0).catch(()=>[]),
+      loadSheet(S.sheetsId,'Budget',0).catch(()=>[]),
     ]);
-    S.gfa=gfa;S.af=af;S.ga=ga;
+    S.gfa=gfa;S.af=af;S.ga=ga;S.budget=budget;
+    S.budgetMap={};
+    budget.forEach(r=>{
+      const camp=(r['캠페인명']||r['캠페인 이름']||'').trim();
+      const amt=parseFloat((r['일예산(VAT포함)']||r['일예산 (VAT포함)']||r['일예산']||'0').toString().replace(/,/g,''))||0;
+      if(camp){
+        S.budgetMap[camp]=amt/1.1; // 정확한 이름
+        S.budgetMap[stripSuffix(camp)]=amt/1.1; // suffix 제거 버전도 저장
+      }
+    });
     // AF 맵
     S.afMap={};
     af.forEach(r=>{const k=afKey(r);if(k)S.afMap[k]=(S.afMap[k]||0)+(parseFloat(r['인스톨'])||0);});
@@ -1408,6 +1444,247 @@ function renderWeekTable(os){
 }
 
 // ══════════════════════════════════════
+// 예산 소진 모니터링
+// ══════════════════════════════════════
+function renderBudget(os){
+  const id=`${os}-budget`;
+  const el=document.getElementById(id);if(!el)return;
+  const allRows=S.gfa.filter(r=>getOS(r['캠페인 이름'])===os&&(parseFloat(r['노출수'])||0)>0);
+
+  if(!Object.keys(S.budgetMap).length){
+    el.innerHTML=`<div class="status-box"><div class="status-text">Budget 시트에 데이터가 없습니다.</div></div>`;
+    return;
+  }
+
+  // 캠페인별 일별 소진 집계
+  const campDayMap={};
+  allRows.forEach(r=>{
+    const camp=r['캠페인 이름']||'';
+    const d=parseGfaDate(r['기간']);if(!d)return;
+    if(!campDayMap[camp])campDayMap[camp]={};
+    if(!campDayMap[camp][d])campDayMap[camp][d]=0;
+    campDayMap[camp][d]+=((parseFloat(r['총비용'])||0)/1.1);
+  });
+
+  // 캠페인 목록
+  const camps=Object.keys(campDayMap);
+  const allDates=[...new Set(allRows.map(r=>parseGfaDate(r['기간'])).filter(Boolean))].sort();
+
+  // KPI: 전체 일평균 소진 vs 목표
+  const totalBudgetDay=camps.reduce((s,c)=>s+(S.budgetMap[c]||S.budgetMap[stripSuffix(c)]||0),0);
+  const recentDates=allDates.slice(-7);
+  const totalActualAvg=recentDates.length>0?camps.reduce((s,c)=>{
+    const dayVals=recentDates.map(d=>campDayMap[c]?.[d]||0);
+    return s+dayVals.reduce((a,b)=>a+b,0)/recentDates.length;
+  },0):0;
+  const overallRate=totalBudgetDay>0?(totalActualAvg/totalBudgetDay*100):0;
+  const rateColor=overallRate>=90?'var(--up)':overallRate>=70?'var(--acc4)':'var(--down)';
+
+  // 차트용 일별 전체 소진
+  const dayTotal={};
+  allDates.forEach(d=>{dayTotal[d]=camps.reduce((s,c)=>s+(campDayMap[c]?.[d]||0),0);});
+
+  const cid=`ct_budget_${os}`;
+
+  el.innerHTML=`
+    <div class="kpi-grid" style="margin-bottom:24px">
+      <div class="kpi-card" style="--kpi-color:${rateColor}">
+        <div class="kpi-label">전체 일예산 (VAT별도)</div>
+        <div class="kpi-value">${fmtW(totalBudgetDay)}</div>
+        <div class="kpi-change" style="color:var(--text2)">캠페인 합산</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:${rateColor}">
+        <div class="kpi-label">최근 7일 일평균 소진</div>
+        <div class="kpi-value">${fmtW(totalActualAvg)}</div>
+        <div class="kpi-change ${overallRate>=90?'up':overallRate>=70?'neutral':'down'}">소진율 ${overallRate.toFixed(1)}%</div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:24px">
+      <div class="chart-title">일별 소진 추이 vs 목표 예산</div>
+      <div class="chart-sub">VAT별도 · 점선: 목표 일예산</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="${cid}"></canvas></div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-head-row">
+        <span class="table-title">캠페인별 예산 소진 현황</span>
+        <span class="table-meta">최근 7일 평균 기준</span>
+      </div>
+      <!-- 7일 평균 테이블 -->
+      <div style="padding:10px 18px 6px;font-size:11px;font-weight:700;color:var(--acc2)">📅 최근 7일 평균 기준</div>
+      <div style="overflow-x:auto">
+        <div style="display:grid;grid-template-columns:2fr 1.4fr 1.1fr 0.8fr 0.8fr 1.2fr;gap:0;background:var(--s2);border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">캠페인</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;text-align:right">일예산(VAT별도)</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;text-align:right">7일 평균 소진</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;text-align:right">소진율</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;text-align:center">상태</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">추이</div>
+        </div>
+        ${camps.map(camp=>{
+          const budgetDay=S.budgetMap[camp]||S.budgetMap[stripSuffix(camp)]||0;
+          const days=recentDates.map(d=>campDayMap[camp]?.[d]||0);
+          const avgSpend=days.length>0?days.reduce((a,b)=>a+b,0)/days.length:0;
+          const rate=budgetDay>0?(avgSpend/budgetDay*100):0;
+          const rColor=!budgetDay?'var(--text3)':rate>=90?'var(--up)':rate>=70?'var(--acc4)':'var(--down)';
+          const status=!budgetDay?'⏸ OFF':rate>=110?'⚠️ 초과':rate>=90?'✅ 정상':rate>=70?'🔶 미달':'🔴 저조';
+          const sparkMax=Math.max(...days,budgetDay||1);
+          const spark=days.map(v=>{
+            const h=Math.max(2,Math.round(v/sparkMax*20));
+            const c=budgetDay>0?(v/budgetDay*100>=90?'var(--up)':v/budgetDay*100>=70?'var(--acc4)':'var(--down)'):'var(--text3)';
+            return`<div style="width:9px;height:${h}px;background:${c};border-radius:2px"></div>`;
+          }).join('');
+          return`<div style="display:grid;grid-template-columns:2fr 1.4fr 1.1fr 0.8fr 0.8fr 1.2fr;gap:0;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+            <div style="padding:9px 12px;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">${camp.length>32?camp.slice(0,32)+'…':camp}</div>
+            <div style="padding:9px 12px;font-size:12px;text-align:right">${budgetDay>0?fmtW(budgetDay)+'<br><span style="font-size:10px;color:var(--text3)">(VAT포함 '+fmtW(budgetDay*1.1)+')</span>':'<span style="color:var(--text3)">미설정</span>'}</div>
+            <div style="padding:9px 12px;font-size:12px;font-weight:700;color:${rColor};text-align:right">${fmtW(avgSpend)}</div>
+            <div style="padding:9px 12px;font-size:12px;font-weight:700;color:${rColor};text-align:right">${budgetDay>0?rate.toFixed(1)+'%':'-'}</div>
+            <div style="padding:9px 12px;font-size:12px;text-align:center">${status}</div>
+            <div style="padding:9px 12px;display:flex;align-items:flex-end;gap:2px;height:38px">${spark}</div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- 최근일자 테이블 -->
+      <div id="budget_comment7_${os}" style="margin:0"></div>
+
+      <div style="padding:14px 18px 6px;font-size:11px;font-weight:700;color:var(--acc4);border-top:2px solid var(--border2);margin-top:4px">📌 최근 일자 기준 (${fmtKR(allDates[allDates.length-1]||'')})</div>
+      <div style="overflow-x:auto">
+        <div style="display:grid;grid-template-columns:2fr 1.4fr 1.1fr 0.8fr 0.8fr;gap:0;background:var(--s2);border-bottom:1px solid var(--border)">
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">캠페인</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;text-align:right">일예산(VAT별도)</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;text-align:right">당일 소진</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;text-align:right">소진율</div>
+          <div style="padding:9px 12px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;text-align:center">상태</div>
+        </div>
+        ${(()=>{const ld=allDates[allDates.length-1];return camps.map(camp=>{
+          const budgetDay=S.budgetMap[camp]||S.budgetMap[stripSuffix(camp)]||0;
+          const todaySpend=campDayMap[camp]?.[ld]||0;
+          const rate=budgetDay>0?(todaySpend/budgetDay*100):0;
+          const rColor=!budgetDay?'var(--text3)':rate>=90?'var(--up)':rate>=70?'var(--acc4)':'var(--down)';
+          const status=!budgetDay?'⏸ OFF':rate>=110?'⚠️ 초과':rate>=90?'✅ 정상':rate>=70?'🔶 미달':'🔴 저조';
+          return`<div style="display:grid;grid-template-columns:2fr 1.4fr 1.1fr 0.8fr 0.8fr;gap:0;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+            <div style="padding:9px 12px;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">${camp.length>32?camp.slice(0,32)+'…':camp}</div>
+            <div style="padding:9px 12px;font-size:12px;text-align:right">${budgetDay>0?fmtW(budgetDay):'<span style="color:var(--text3)">미설정</span>'}</div>
+            <div style="padding:9px 12px;font-size:12px;font-weight:700;color:${rColor};text-align:right">${fmtW(todaySpend)}</div>
+            <div style="padding:9px 12px;font-size:12px;font-weight:700;color:${rColor};text-align:right">${budgetDay>0?rate.toFixed(1)+'%':'-'}</div>
+            <div style="padding:9px 12px;font-size:12px;text-align:center">${status}</div>
+          </div>`;
+        }).join('');})()}
+      </div>
+    </div>
+
+    <div id="budget_commentLast_${os}" style="margin:0"></div>`;
+
+  // 차트
+  if(S.charts[cid])S.charts[cid].destroy();
+  S.charts[cid]=new Chart(document.getElementById(cid).getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:allDates.map(d=>d.slice(5)),
+      datasets:[
+        {label:'실제 소진',data:allDates.map(d=>dayTotal[d]||0),backgroundColor:'rgba(0,212,160,.6)',borderRadius:4,yAxisID:'y'},
+        {label:'목표 예산',data:allDates.map(()=>totalBudgetDay),type:'line',borderColor:'rgba(255,204,68,.8)',borderDash:[6,3],borderWidth:2,pointRadius:0,fill:false,yAxisID:'y'},
+      ],
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:'#7a8fad',font:{size:11},boxWidth:10}}},
+      scales:{
+        x:{ticks:{color:'#3d4f68',font:{size:10}},grid:{color:'#1e2636'}},
+        y:{ticks:{color:'#3d4f68',font:{size:10},callback:v=>'₩'+Math.round(v/10000)+'만'},grid:{color:'#1e2636'}},
+      },
+    },
+  });
+
+  // 자동 코멘트
+  // ── 최근 7일 평균 분석 ──
+  let html7='';
+  if(overallRate>=90&&overallRate<=110)html7+=`<div style="color:var(--up);margin-bottom:6px">✅ 전체 7일 평균 소진율 <strong>${overallRate.toFixed(1)}%</strong>로 정상 범위입니다.</div>`;
+  else if(overallRate>110)html7+=`<div style="color:var(--down);margin-bottom:6px">⚠️ 전체 7일 평균 소진율 <strong>${overallRate.toFixed(1)}%</strong>로 목표 초과 중입니다. 예산 증액 또는 입찰가 조정을 검토해주세요.</div>`;
+  else html7+=`<div style="color:var(--down);margin-bottom:6px">🔴 전체 7일 평균 소진율 <strong>${overallRate.toFixed(1)}%</strong>로 저조합니다. 소재 CTR 및 품질 점검을 검토해주세요.</div>`;
+  const camp7=camps.map(c=>{
+    const b=S.budgetMap[c]||S.budgetMap[stripSuffix(c)]||0;if(!b)return null;
+    const days=recentDates.map(d=>campDayMap[c]?.[d]||0);
+    const avg=days.reduce((a,v)=>a+v,0)/Math.max(days.length,1);
+    const r=avg/b*100;
+    const nm=c.length>38?c.slice(0,38)+'…':c;
+    // 해당 캠페인 소재 중 고효율 소재 찾기 (CPI 낮고 소진 있는 소재)
+    const campCres=S.gfa.filter(row=>row['캠페인 이름']===c&&(parseFloat(row['노출수'])||0)>0);
+    const creMap={};
+    campCres.forEach(row=>{
+      const nm2=row['광고 소재 이름']||'';
+      if(!creMap[nm2])creMap[nm2]={cost:0,clk:0,af:0};
+      creMap[nm2].cost+=((parseFloat(row['총비용'])||0)/1.1);
+      creMap[nm2].clk+=(parseFloat(row['클릭수'])||0);
+      creMap[nm2].af+=getAF(row);
+    });
+    const creList=Object.entries(creMap).map(([n,v])=>({name:n,cpi:v.af>0?v.cost/v.af:0,ctr:v.clk>0?v.clk/(v.cost/v.af||1):0,cost:v.cost})).filter(d=>d.cpi>0).sort((a,b)=>a.cpi-b.cpi);
+    const bestCre=creList[0];
+    const avgCtr=campCres.length>0?(campCres.reduce((s,r)=>s+(parseFloat(r['클릭수'])||0),0)/Math.max(campCres.reduce((s,r)=>s+(parseFloat(r['노출수'])||0),0),1)):0;
+    let action='';
+    if(r<90){
+      if(avgCtr<0.002){
+        action='CTR이 낮아 소재 품질 점검이 필요합니다.';
+        if(bestCre)action+=` 특히 <strong>${bestCre.name.length>25?bestCre.name.slice(0,25)+'…':bestCre.name}</strong>(CPI ${fmtW(bestCre.cpi)}) 소재의 베리에이션 추가로 소진 확대를 검토해보세요.`;
+      } else {
+        if(bestCre)action+=`<strong>${bestCre.name.length>25?bestCre.name.slice(0,25)+'…':bestCre.name}</strong>(CPI ${fmtW(bestCre.cpi)}) 등 고효율 소재의 베리에이션을 추가해 소진 확대를 검토해보세요.`;
+        else action+='예산 대비 소진이 부족합니다. 예산을 실제 소진 수준에 맞게 재설정하거나 소재를 보강해보세요.';
+      }
+    }
+    if(r>110)return`<div style="padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--down)">⚠️ 초과 (${r.toFixed(1)}%)</span> <strong>${nm}</strong> — 평균 ${fmtW(avg)} / 예산 ${fmtW(b)}. 예산 재설정(증액) 검토.</div>`;
+    if(r>=90)return`<div style="padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--up)">✅ 정상 (${r.toFixed(1)}%)</span> <strong>${nm}</strong> — 평균 ${fmtW(avg)} / 예산 ${fmtW(b)}.</div>`;
+    if(r>=70)return`<div style="padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--acc4)">🔶 미달 (${r.toFixed(1)}%)</span> <strong>${nm}</strong> — 평균 ${fmtW(avg)} / 예산 ${fmtW(b)}. ${action}</div>`;
+    return`<div style="padding:6px 0;border-bottom:1px solid var(--border)"><span style="color:var(--down)">🔴 저조 (${r.toFixed(1)}%)</span> <strong>${nm}</strong> — 평균 ${fmtW(avg)} / 예산 ${fmtW(b)}. ${action}</div>`;
+  }).filter(Boolean).join('');
+  if(camp7)html7+=`<div style="font-size:12px">${camp7}</div>`;
+
+  // ── 최근 일자 분석 ──
+  const lastDate=allDates[allDates.length-1];
+  const lastLabel=fmtKR(lastDate||'');
+  let htmlLast=`<div style="color:var(--text2);margin-bottom:6px">📌 ${lastLabel} 기준 당일 소진 현황</div>`;
+  const totalLastSpend=camps.reduce((s,c)=>s+(campDayMap[c]?.[lastDate]||0),0);
+  const lastRate=totalBudgetDay>0?(totalLastSpend/totalBudgetDay*100):0;
+  if(lastRate>=90&&lastRate<=110)htmlLast+=`<div style="color:var(--up);margin-bottom:6px">✅ 전체 당일 소진율 <strong>${lastRate.toFixed(1)}%</strong>로 정상 범위입니다.</div>`;
+  else if(lastRate>110)htmlLast+=`<div style="color:var(--down);margin-bottom:6px">⚠️ 전체 당일 소진율 <strong>${lastRate.toFixed(1)}%</strong>로 목표 초과 중입니다.</div>`;
+  else htmlLast+=`<div style="color:var(--down);margin-bottom:6px">🔴 전체 당일 소진율 <strong>${lastRate.toFixed(1)}%</strong>로 저조합니다.</div>`;
+  const campLast=camps.map(c=>{
+    const b=S.budgetMap[c]||S.budgetMap[stripSuffix(c)]||0;if(!b)return null;
+    const spend=campDayMap[c]?.[lastDate]||0;
+    const r=spend/b*100;
+    const nm=c.length>38?c.slice(0,38)+'…':c;
+    // 해당 캠페인 고효율 소재 찾기
+    const creM={};
+    S.gfa.filter(row=>row['캠페인 이름']===c&&(parseFloat(row['노출수'])||0)>0).forEach(row=>{
+      const n2=row['광고 소재 이름']||'';
+      if(!creM[n2])creM[n2]={cost:0,af:0,clk:0};
+      creM[n2].cost+=((parseFloat(row['총비용'])||0)/1.1);
+      creM[n2].af+=getAF(row);
+      creM[n2].clk+=(parseFloat(row['클릭수'])||0);
+    });
+    const creListL=Object.entries(creM).map(([n,v])=>({name:n,cpi:v.af>0?v.cost/v.af:0,ctr:v.clk>0?v.clk/Math.max(parseFloat(S.gfa.find(r=>r['광고 소재 이름']===n&&r['캠페인 이름']===c)?.['노출수'])||1,1):0,cost:v.cost})).filter(d=>d.cpi>0).sort((a,b)=>a.cpi-b.cpi);
+    const bc=creListL[0];
+    const suggestion=r<90?(bc
+      ?`고효율 소재 <strong>${bc.name.length>22?bc.name.slice(0,22)+'…':bc.name}</strong>(CPI ${fmtW(bc.cpi)})의 베리에이션을 추가해 소진 확대를 검토해보세요.`
+      :'소재 보강 또는 예산을 실소진 수준으로 재설정을 검토해보세요.'):'';
+    if(r>110)return`<div style="padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--down)">⚠️ 초과 (${r.toFixed(1)}%)</span> <strong>${nm}</strong> — ${fmtW(spend)} / 예산 ${fmtW(b)}. 예산 재설정(증액) 검토.</div>`;
+    if(r>=90)return`<div style="padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--up)">✅ 정상 (${r.toFixed(1)}%)</span> <strong>${nm}</strong> — ${fmtW(spend)} / 예산 ${fmtW(b)}.</div>`;
+    if(r>=70)return`<div style="padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--acc4)">🔶 미달 (${r.toFixed(1)}%)</span> <strong>${nm}</strong> — ${fmtW(spend)} / 예산 ${fmtW(b)}. ${suggestion}</div>`;
+    return`<div style="padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--down)">🔴 저조 (${r.toFixed(1)}%)</span> <strong>${nm}</strong> — ${fmtW(spend)} / 예산 ${fmtW(b)}. ${suggestion}</div>`;
+  }).filter(Boolean).join('');
+  if(campLast)htmlLast+=`<div style="font-size:12px">${campLast}</div>`;
+
+  const el7=document.getElementById(`budget_comment7_${os}`);
+  const elLast=document.getElementById(`budget_commentLast_${os}`);
+  setTimeout(()=>{
+    if(el7)el7.innerHTML=`<div class="comment-box" style="border-radius:0 0 var(--r) var(--r);margin-bottom:0"><div class="comment-title" style="color:var(--acc2)">📊 7일 평균 소진 분석</div><div class="comment-text">${html7}</div></div>`;
+    if(elLast)elLast.innerHTML=`<div class="comment-box" style="border-radius:0 0 var(--r) var(--r);margin-bottom:0"><div class="comment-title" style="color:var(--acc4)">📊 최근 일자 소진 분석 (${lastLabel})</div><div class="comment-text">${htmlLast}</div></div>`;
+  },50);
+}
+
+// ══════════════════════════════════════
 // 렌더 진입점
 // ══════════════════════════════════════
 function renderAll(){if(!S.gfa.length)return;renderTab(S.mainTab,S.subTab);}
@@ -1419,6 +1696,7 @@ function renderTab(mainTab,subTab){
   else if(subTab==='creatives')renderCreatives(os);
   else if(subTab==='usp')renderUSP(os);
   else if(subTab==='weekcompare')renderWeekCompare(os);
+  else if(subTab==='budget')renderBudget(os);
 }
 
 // ══════════════════════════════════════
@@ -1453,7 +1731,7 @@ document.querySelectorAll('.sub-tab').forEach(t=>{
       const p=document.getElementById(`${os}-${S.subTab}`);if(p)p.classList.add('active');
     });
     const filterBar=document.getElementById('filterBar');
-    filterBar.style.display=S.subTab==='weekcompare'?'none':'';
+    filterBar.style.display=(S.subTab==='weekcompare'||S.subTab==='budget')?'none':'';
     renderTab(S.mainTab,S.subTab);
   });
 });
