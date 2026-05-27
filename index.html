@@ -247,9 +247,13 @@ function getOS(camp){
 // ══════════════════════════════════════
 // 매칭 키
 // ══════════════════════════════════════
+function stripSuffix(s){
+  // _260415, _260511 같은 끝 날짜코드 제거
+  return (s||'').replace(/_\d{6}$/, '');
+}
 function gfaKey(r){
   const d=(r['기간']||'').replace(/\./g,'').trim().slice(0,8);
-  return (r['캠페인 이름']||'')+(r['광고 소재 이름']||'')+d;
+  return stripSuffix(r['캠페인 이름']||'')+stripSuffix(r['광고 소재 이름']||'')+d;
 }
 function afKey(r){
   const d=(r['날짜']||'').replace(/-/g,'').trim().slice(0,8);
@@ -257,7 +261,7 @@ function afKey(r){
 }
 function gaKey(r){
   const d=(r['날짜']||'').toString().replace(/-/g,'').trim().slice(0,8);
-  return (r['세션 캠페인']||'')+(r['세션 수동 검색어']||'')+d;
+  return stripSuffix(r['세션 캠페인']||'')+stripSuffix(r['세션 수동 검색어']||'')+d;
 }
 
 // ══════════════════════════════════════
@@ -611,9 +615,9 @@ function buildCampaignComment(data,os){
           const color=d.cpi<=avgCpi?'var(--up)':'var(--down)';
           const vsTag=`<span style="font-size:10px;color:${color};margin-left:6px">${vsAvg>=0?'+':''}${vsAvg.toFixed(1)}% vs 평균</span>`;
           return`<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;gap:8px">
-              <span style="color:var(--text);font-size:12px;font-weight:600;word-break:break-all">${medals[i]||i+1+'.'} ${d.name}</span>
-              <span style="white-space:nowrap;font-size:13px;font-weight:700;color:${color}">CPI ${fmtW(d.cpi)}${vsTag}</span>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+              <span style="color:var(--text);font-size:12px;font-weight:600">${medals[i]||i+1+'.'} ${d.name}</span>
+              <span style="font-size:12px;font-weight:700;color:${color};white-space:nowrap">CPI ${fmtW(d.cpi)}${vsTag}</span>
             </div>
             <div style="display:flex;gap:14px;font-size:11px;color:var(--text2);flex-wrap:wrap">
               <span>비용 ${fmtW(d.cost)} (${(d.cost/totalCost*100).toFixed(1)}%)</span>
@@ -656,13 +660,15 @@ function buildCampaignComment(data,os){
           const color=d.cpa_visit<=avgCpa?'var(--up)':'var(--down)';
           const vsTag=`<span style="font-size:10px;color:${color};margin-left:6px">${vsAvg>=0?'+':''}${vsAvg.toFixed(1)}% vs 평균</span>`;
           return`<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;gap:8px">
-              <span style="color:var(--text);font-size:12px;font-weight:600;word-break:break-all">${medals[i]||i+1+'.'} ${d.name}</span>
-              <span style="white-space:nowrap;font-size:13px;font-weight:700;color:${color}">CPA ${fmtW(d.cpa_visit)}${vsTag}</span>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+              <span style="color:var(--text);font-size:12px;font-weight:600">${medals[i]||i+1+'.'} ${d.name}</span>
+              <span style="font-size:12px;font-weight:700;color:${color};white-space:nowrap">CPA ${fmtW(d.cpa_visit)}${vsTag}</span>
             </div>
             <div style="display:flex;gap:14px;font-size:11px;color:var(--text2);flex-wrap:wrap">
               <span>비용 ${fmtW(d.cost)} (${(d.cost/totalCost*100).toFixed(1)}%)</span>
               <span>매물상세 ${fmtN(d.visit)}건</span>
+              <span>카톡문의 ${fmtN(d.inquiry)}건</span>
+              <span>예약완료 ${fmtN(d.complete)}건</span>
               <span>CTR ${fmtP(d.ctr)}</span>
               <span>CPC ${fmtW(d.cpc)}</span>
             </div>
@@ -691,40 +697,40 @@ function buildCreativeComment(badItems,goodItems,topN,os){
     const effVal=os==='pc'?fmtW(d.cpa_visit):fmtW(d.cpi);
     const effLbl=os==='pc'?'CPA':'CPI';
     return`<div style="padding:6px 0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <span style="color:var(--text);font-size:12px;font-weight:600;word-break:break-all">${d.name}</span>
-        <span style="color:${color};font-weight:700;white-space:nowrap;margin-left:8px;font-size:12px">${effLbl} ${effVal}</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+        <span style="color:var(--text);font-size:12px;font-weight:600">${d.name}</span>
+        <span style="color:${color};font-weight:700;font-size:12px;white-space:nowrap">${effLbl} ${effVal}</span>
       </div>
       <div style="display:flex;gap:12px;font-size:11px;color:var(--text2);flex-wrap:wrap">
         <span>${uspBadge(d.usp)}</span>
         <span>CPC ${fmtW(d.cpc)}</span>
-        <span>CTI ${fmtP1(d.cvr)}</span>
+        <span>${os==='pc'?'CVR(매물) '+fmtP1(d.cvr_visit||0):'CTI '+fmtP1(d.cvr)}</span>
         <span>비용 ${fmtW(d.cost)}</span>
         ${os==='pc'&&d.visit>0?`<span>매물상세 ${fmtN(d.visit)}건</span>`:''}
       </div>
     </div>`;
   }
   if(goodItems.length>0){
-    const avgCpi=goodItems.reduce((s,d)=>s+d.cpi,0)/goodItems.length;
+    const avgCpi=os==='pc'?goodItems.reduce((s,d)=>s+(d.cpa_visit||0),0)/goodItems.length:goodItems.reduce((s,d)=>s+d.cpi,0)/goodItems.length;
     html+=`<div style="margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;color:var(--up);margin-bottom:6px">✅ 고효율 소재 Top${topN} · 소진 상위 10개 중 ${os==='pc'?'CPA':'CPI'} 우수순</div>
       ${goodItems.map(d=>creRow(d,'var(--up)')).join('')}
-      <div style="font-size:11px;color:var(--text2);margin-top:5px">평균 CPI ${fmtW(avgCpi)}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:5px">평균 ${os==='pc'?'CPA':'CPI'} ${fmtW(avgCpi)}</div>
     </div>`;
   }
   if(badItems.length>0){
-    const avgCpi=badItems.reduce((s,d)=>s+d.cpi,0)/badItems.length;
+    const avgCpi=os==='pc'?badItems.reduce((s,d)=>s+(d.cpa_visit||0),0)/badItems.length:badItems.reduce((s,d)=>s+d.cpi,0)/badItems.length;
     html+=`<div style="margin-bottom:14px">
       <div style="font-size:11px;font-weight:700;color:var(--down);margin-bottom:6px">⚠️ 저효율 소재 Top${topN} · 전체 소재 중 ${os==='pc'?'CPA':'CPI'} 저조순</div>
       ${badItems.map(d=>creRow(d,'var(--down)')).join('')}
-      <div style="font-size:11px;color:var(--text2);margin-top:5px">평균 CPI ${fmtW(avgCpi)}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:5px">평균 ${os==='pc'?'CPA':'CPI'} ${fmtW(avgCpi)}</div>
     </div>`;
   }
   if(goodItems.length>0&&badItems.length>0){
-    const ratio=badItems[0].cpi/goodItems[0].cpi;
+    const ratio=os==='pc'?(badItems[0].cpa_visit||0)/(goodItems[0].cpa_visit||1):(badItems[0].cpi||0)/(goodItems[0].cpi||1);
     const msg=ratio>1.5
-      ?`<span style="color:var(--down)">최저·최고효율 소재 간 CPI 차이 <strong>${ratio.toFixed(1)}배</strong> — 저효율 소재 예산 조정 검토 필요</span>`
-      :`<span style="color:var(--text2)">소재 간 CPI 편차가 크지 않아 전반적으로 균일한 효율입니다.</span>`;
+      ?`<span style="color:var(--down)">최저·최고효율 소재 간 ${os==='pc'?'CPA':'CPI'} 차이 <strong>${ratio.toFixed(1)}배</strong> — 저효율 소재 예산 조정 검토 필요</span>`
+      :`<span style="color:var(--text2)">소재 간 ${os==='pc'?'CPA':'CPI'} 편차가 크지 않아 전반적으로 균일한 효율입니다.</span>`;
     html+=`<div style="font-size:12px;padding-top:4px">${msg}</div>`;
   }
   if(!html){
@@ -949,7 +955,7 @@ function renderCampaigns(os){
     cpa_visit:d.visit>0?d.cost/d.visit:0,
   })).sort((a,b)=>b.cost-a.cost);
   const maxImp=Math.max(...data.map(d=>d.imp),1);
-  const pcExtra=os==='pc'?'<th>매물상세</th><th>CPA(매물상세)</th><th>CVR(매물상세)</th><th>카톡문의</th><th>CPA(카톡)</th><th>예약완료</th><th>CPA(예약)</th>':'';
+  const pcExtra=os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>CVR(카톡)</th><th>예약완료</th><th>CPA(예약)</th><th>CVR(예약)</th>':'';
   const campComment=buildCampaignComment(data,os);
   el.innerHTML=`
     <div class="table-card">
@@ -962,18 +968,18 @@ function renderCampaigns(os){
           <th>캠페인</th><th>주차</th>
           <th>노출</th><th>클릭</th><th>CTR</th>
           <th>비용(VAT별도)</th><th>CPC</th>
-          ${os!=='pc'?'<th>AF설치</th><th>CPI(AF)</th>':''}
+          ${os!=='pc'?'<th>AF설치</th><th>CPI(AF)</th><th>CTI</th>':''}
           ${pcExtra}
         </tr></thead>
         <tbody>${data.map(d=>{
-          const pcCells=os==='pc'?`<td>${fmtN(d.visit)}</td><td>${fmtW(d.cpa_visit)}</td><td>${fmtP1(d.clk>0?d.visit/d.clk:0)}</td><td>${fmtN(d.inquiry)}</td><td>${fmtW(d.inquiry>0?d.cost/d.inquiry:0)}</td><td>${fmtN(d.complete)}</td><td>${fmtW(d.complete>0?d.cost/d.complete:0)}</td>`:'';
+          const pcCells=os==='pc'?`<td>${fmtN(d.visit)}</td><td>${fmtW(d.cpa_visit)}</td><td>${fmtP1(d.clk>0?d.visit/d.clk:0)}</td><td>${fmtN(d.inquiry)}</td><td>${fmtW(d.inquiry>0?d.cost/d.inquiry:0)}</td><td>${fmtP1(d.clk>0?d.inquiry/d.clk:0)}</td><td>${fmtN(d.complete)}</td><td>${fmtW(d.complete>0?d.cost/d.complete:0)}</td><td>${fmtP1(d.clk>0?d.complete/d.clk:0)}</td>`:'';
           return`<tr>
             <td title="${d.name}" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.name.length>30?d.name.slice(0,30)+'…':d.name}</td>
             <td style="font-size:10px;color:var(--text2)">${[...d.weeks].sort().map(w=>w+'주').join(' ')}</td>
             <td><div class="bar-cell">${fmtN(d.imp)}<div class="bar-bg"><div class="bar-fill" style="width:${(d.imp/maxImp*100).toFixed(1)}%"></div></div></div></td>
             <td>${fmtN(d.clk)}</td><td>${fmtP(d.ctr)}</td>
             <td style="color:var(--acc4)">${fmtW(d.cost)}</td><td>${fmtW(d.cpc)}</td>
-            ${os!=='pc'?`<td style="color:var(--acc)">${fmtN(d.af)}</td><td>${fmtW(d.cpi)}</td>`:''}
+            ${os!=='pc'?`<td style="color:var(--acc)">${fmtN(d.af)}</td><td>${fmtW(d.cpi)}</td><td>${fmtP1(d.clk>0?d.af/d.clk:0)}</td>`:''}
             ${pcCells}
           </tr>`;
         }).join('')}</tbody></table>
@@ -1025,10 +1031,17 @@ function renderCreativesTable(os){
   const data=Object.values(creG).map(d=>({...d,
     ctr:d.imp>0?d.clk/d.imp:0,cpc:d.clk>0?d.cost/d.clk:0,
     cpi:d.af>0?d.cost/d.af:0,cvr:d.clk>0?d.af/d.clk:0,
+    cpa_visit:d.visit>0?d.cost/d.visit:0,
+    cvr_visit:d.clk>0?d.visit/d.clk:0,
   })).sort((a,b)=>{
+    if(os==='pc'){
+      if(!a.cpa_visit&&!b.cpa_visit)return 0;
+      if(!a.cpa_visit)return 1;if(!b.cpa_visit)return -1;
+      return b.cpa_visit-a.cpa_visit;
+    }
     if(!a.cpi&&!b.cpi)return 0;
     if(!a.cpi)return 1;if(!b.cpi)return -1;
-    return b.cpi-a.cpi; // 높을수록(저효율) 위
+    return b.cpi-a.cpi;
   });
 
   const total=data.length;
@@ -1054,13 +1067,13 @@ function renderCreativesTable(os){
   const badIdx=new Set(badCandidates.slice(0,topN).map(({i})=>i));
 
   const maxImp=Math.max(...data.map(d=>d.imp),1);
-  const pcExtra=os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>예약완료</th>':'';
+  const pcExtra=os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>CVR(카톡)</th><th>예약완료</th><th>CPA(예약)</th>':'';
 
   const contentEl=document.getElementById(`cre_content_${os}`);
   if(!contentEl)return;
   contentEl.innerHTML=`
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--text2)">CPI 기준 내림차순 · </span>
+      <span style="font-size:11px;color:var(--text2)">${os==='pc'?'CPA':'CPI'} 기준 내림차순 · </span>
       <span><span class="badge-bad">저효율 Top${topN}</span> 높은 ${os==='pc'?'CPA':'CPI'}</span>
       <span><span class="badge-good">고효율 Top${topN}</span> 낮은 ${os==='pc'?'CPA':'CPI'}</span>
     </div>
@@ -1082,7 +1095,7 @@ function renderCreativesTable(os){
           const isGood=goodIdx.has(i);
           const rowCls=isBad?'highlight-row-bad':isGood?'highlight-row-good':'';
           const badge=isBad?`<span class="badge-bad">저효율</span>`:isGood?`<span class="badge-good">고효율</span>`:'';
-          const pcCells=os==='pc'?`<td>${fmtN(d.visit)}</td><td>${fmtP1(d.clk>0?d.visit/d.clk:0)}</td>`:'';
+          const pcCells=os==='pc'?`<td>${fmtN(d.visit)}</td><td>${fmtW(d.visit>0?d.cost/d.visit:0)}</td><td>${fmtP1(d.clk>0?d.visit/d.clk:0)}</td><td>${fmtN(d.inquiry)}</td><td>${fmtW(d.inquiry>0?d.cost/d.inquiry:0)}</td><td>${fmtP1(d.clk>0?d.inquiry/d.clk:0)}</td><td>${fmtN(d.complete)}</td><td>${fmtW(d.complete>0?d.cost/d.complete:0)}</td>`:'';
           return`<tr class="${rowCls}">
             <td title="${d.name}" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.name.length>26?d.name.slice(0,26)+'…':d.name}${badge}</td>
             <td>${uspBadge(d.usp)}</td>
@@ -1251,7 +1264,7 @@ function renderWeekTable(os){
           <th>주차</th><th>기간</th>
           <th>노출</th><th>클릭</th><th>CTR</th>
           <th>비용</th><th>CPC</th>
-          ${os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>예약완료</th>':'<th>AF설치</th><th>CPI(AF)</th><th>CTI</th>'}
+          ${os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>예약완료</th><th>CPA(예약)</th>':'<th>AF설치</th><th>CPI(AF)</th><th>CTI</th>'}
         </tr></thead>
         <tbody>${weekData.map((d,i)=>{
           const prev=i>0?weekData[i-1]:null;
@@ -1328,21 +1341,8 @@ document.querySelectorAll('.sub-tab').forEach(t=>{
       document.querySelectorAll(`#main-${os} .sub-panel`).forEach(x=>x.classList.remove('active'));
       const p=document.getElementById(`${os}-${S.subTab}`);if(p)p.classList.add('active');
     });
-    // 주차별 탭에서 기간 필터 숨기기
     const filterBar=document.getElementById('filterBar');
-    const dateEls=filterBar.querySelectorAll('input[type=date], .qbtn, .apply-btn');
-    const dateDivs=filterBar.querySelectorAll('.fdiv');
-    if(S.subTab==='weekcompare'){
-      dateEls.forEach(e=>e.style.display='none');
-      // 기간 라벨들도 숨기기
-      filterBar.querySelectorAll('.fl').forEach((e,i)=>{if(i===0)e.style.display='none';});
-      dateDivs[0].style.display='none';
-      dateDivs[dateDivs.length-1].style.display='none';
-    }else{
-      dateEls.forEach(e=>e.style.display='');
-      filterBar.querySelectorAll('.fl').forEach(e=>e.style.display='');
-      dateDivs.forEach(e=>e.style.display='');
-    }
+    filterBar.style.display=S.subTab==='weekcompare'?'none':'';
     renderTab(S.mainTab,S.subTab);
   });
 });
