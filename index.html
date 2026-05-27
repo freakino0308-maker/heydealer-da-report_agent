@@ -97,9 +97,9 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;color
 .modal-input:focus{border-color:var(--acc);}
 .modal-status{margin-top:10px;font-size:12px;}
 .modal-close{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;}
-.comment-box{background:var(--s2);border:1px solid var(--border);border-left:3px solid var(--acc);border-radius:var(--r);padding:16px 18px;margin-bottom:24px;}
+.comment-box{background:var(--s2);border:1px solid var(--border);border-left:3px solid var(--acc);border-radius:var(--r);padding:16px 18px;margin-bottom:24px;overflow:hidden;}
 .comment-title{font-size:11px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
-.comment-text{font-size:13px;color:var(--text2);line-height:1.7;}
+.comment-text{font-size:13px;color:var(--text2);line-height:1.7;word-break:break-word;white-space:normal;overflow-wrap:break-word;}
 .comment-loading{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);}
 .highlight-row-bad td{background:rgba(255,95,95,.06)!important;}
 .highlight-row-good td{background:rgba(0,212,160,.06)!important;}
@@ -253,7 +253,7 @@ function stripSuffix(s){
 }
 function gfaKey(r){
   const d=(r['기간']||'').replace(/\./g,'').trim().slice(0,8);
-  return stripSuffix(r['캠페인 이름']||'')+stripSuffix(r['광고 소재 이름']||'')+d;
+  return (r['캠페인 이름']||'')+(r['광고 소재 이름']||'')+d;
 }
 function afKey(r){
   const d=(r['날짜']||'').replace(/-/g,'').trim().slice(0,8);
@@ -262,6 +262,10 @@ function afKey(r){
 function gaKey(r){
   const d=(r['날짜']||'').toString().replace(/-/g,'').trim().slice(0,8);
   return stripSuffix(r['세션 캠페인']||'')+stripSuffix(r['세션 수동 검색어']||'')+d;
+}
+function gfaKeyStripped(r){
+  const d=(r['기간']||'').replace(/\./g,'').trim().slice(0,8);
+  return stripSuffix(r['캠페인 이름']||'')+stripSuffix(r['광고 소재 이름']||'')+d;
 }
 
 // ══════════════════════════════════════
@@ -404,7 +408,7 @@ function buildWeekSelect(dates){
 // 데이터 조회
 // ══════════════════════════════════════
 function getAF(row){return S.afMap[gfaKey(row)]||0;}
-function getGA(row){return S.gaMap[gfaKey(row)]||{visit:0,inquiry:0,complete:0};}
+function getGA(row){return S.gaMap[gfaKeyStripped(row)]||{visit:0,inquiry:0,complete:0};}
 
 function filterGfa(rows,os){
   return rows.filter(r=>{
@@ -726,12 +730,117 @@ function buildCreativeComment(badItems,goodItems,topN,os){
       <div style="font-size:11px;color:var(--text2);margin-top:5px">평균 ${os==='pc'?'CPA':'CPI'} ${fmtW(avgCpi)}</div>
     </div>`;
   }
-  if(goodItems.length>0&&badItems.length>0){
-    const ratio=os==='pc'?(badItems[0].cpa_visit||0)/(goodItems[0].cpa_visit||1):(badItems[0].cpi||0)/(goodItems[0].cpi||1);
-    const msg=ratio>1.5
-      ?`<span style="color:var(--down)">최저·최고효율 소재 간 ${os==='pc'?'CPA':'CPI'} 차이 <strong>${ratio.toFixed(1)}배</strong> — 저효율 소재 예산 조정 검토 필요</span>`
-      :`<span style="color:var(--text2)">소재 간 ${os==='pc'?'CPA':'CPI'} 편차가 크지 않아 전반적으로 균일한 효율입니다.</span>`;
-    html+=`<div style="font-size:12px;padding-top:4px">${msg}</div>`;
+  if(goodItems.length>0||badItems.length>0){
+    const effLabel=os==='pc'?'CPA':'CPI';
+    const allItems=[...goodItems,...badItems];
+    const ratio=(goodItems.length>0&&badItems.length>0)
+      ?(os==='pc'?(badItems[0].cpa_visit||0)/(goodItems[0].cpa_visit||1):(badItems[0].cpi||0)/(goodItems[0].cpi||1))
+      :0;
+
+    // 사이즈 분석
+    function extractSize(name){
+      if(/SQR/.test(name))return'SQR(1:1)';
+      if(/LND_750x280/.test(name))return'LND_750x280';
+      if(/LND_1250x560/.test(name))return'LND_1250x560';
+      if(/LND/.test(name))return'LND(가로형)';
+      return null;
+    }
+    const sizeEff={};
+    allItems.forEach(d=>{
+      const sz=extractSize(d.name);if(!sz)return;
+      if(!sizeEff[sz])sizeEff[sz]={cost:0,eff:0,cnt:0};
+      const effV=os==='pc'?(d.cpa_visit||0):d.cpi;
+      if(effV>0){sizeEff[sz].eff+=effV;sizeEff[sz].cnt++;}
+      sizeEff[sz].cost+=d.cost;
+    });
+    const sizeList=Object.entries(sizeEff).filter(([,v])=>v.cnt>0)
+      .map(([k,v])=>({size:k,avgEff:v.eff/v.cnt,cost:v.cost}))
+      .sort((a,b)=>a.avgEff-b.avgEff);
+
+    let msgs=[];
+
+    // 효율 편차 코멘트
+    if(ratio>1.5){
+      msgs.push(`<span style="color:var(--down)">최저·최고효율 소재 간 ${effLabel} 차이 <strong>${ratio.toFixed(1)}배</strong>로 소재 간 효율 편차가 큽니다.</span>`);
+    }
+
+    // 소재명에서 투입일 추출 (예: USP_AF_LND_260415 → 2026-04-15)
+    function getCreativeDate(name){
+      // 소재명 끝부분 6자리 날짜코드 추출 (260415, 260511 등)
+      const parts=name.split('_');
+      // 끝에서부터 6자리 숫자 찾기
+      for(let i=parts.length-1;i>=0;i--){
+        if(/^\d{6}$/.test(parts[i])){
+          const s=parts[i];
+          const yr=2000+parseInt(s.slice(0,2));
+          const mo=parseInt(s.slice(2,4))-1;
+          const dy=parseInt(s.slice(4,6));
+          const d=new Date(yr,mo,dy);
+          if(!isNaN(d))return d;
+        }
+      }
+      return null;
+    }
+    function isLongRunning(name){
+      const cd=getCreativeDate(name);
+      if(!cd||isNaN(cd))return true; // 날짜 못 찾으면 오래됐다고 간주
+      const today=new Date(S.endDate);
+      return Math.floor((today-cd)/86400000)>=14;
+    }
+
+    // 저효율 소재 - 투입 2주 이상된 것만 OFF 추천
+    if(badItems.length>0){
+      const longBad=badItems.filter(d=>isLongRunning(d.name));
+      const shortBad=badItems.filter(d=>!isLongRunning(d.name));
+      if(longBad.length>0){
+        msgs.push(`<span style="color:var(--down)">⚠️ <strong>저효율 소재 OFF 검토:</strong> 투입 후 2주 이상 지속적으로 ${effLabel}가 높은 아래 소재는 OFF를 검토해주세요.<br>${longBad.map(d=>`· ${d.name}`).join('<br>')}</span>`);
+      }
+      if(shortBad.length>0){
+        msgs.push(`<span style="color:var(--text2)">📊 아래 저효율 소재는 투입된 지 2주 미만으로 추이를 더 지켜본 후 판단하세요.<br>${shortBad.map(d=>`· ${d.name}`).join('<br>')}</span>`);
+      }
+    }
+
+    // 고효율 소재 - 투입 2주 이상 지속 우수 소재만 베리에이션 추천
+    if(goodItems.length>0){
+      const longGood=goodItems.filter(d=>isLongRunning(d.name));
+      const shortGood=goodItems.filter(d=>!isLongRunning(d.name));
+      if(longGood.length>0){
+        msgs.push(`<span style="color:var(--up)">✅ <strong>베리에이션 추천:</strong> 투입 후 2주 이상 우수 효율이 지속되는 아래 소재의 템플릿으로 신규 소재 제작을 검토해주세요.<br>${longGood.map(d=>`· ${d.name}`).join('<br>')}</span>`);
+      }
+      if(shortGood.length>0){
+        msgs.push(`<span style="color:var(--up)">📈 아래 고효율 소재는 투입된 지 2주 미만입니다. 효율이 지속되면 베리에이션 제작을 검토해주세요.<br>${shortGood.map(d=>`· ${d.name}`).join('<br>')}</span>`);
+      }
+    }
+
+    // 사이즈별 효율 분석 - 전체 사이즈 목록
+    if(sizeList.length>=1){
+      const sizeRows=sizeList.map((s,i)=>{
+        const isBest=i===0;
+        const isWorst=i===sizeList.length-1&&sizeList.length>1;
+        const color=isBest?'var(--up)':isWorst?'var(--down)':'var(--text)';
+        const tag=isBest?' 🏆':isWorst?' ⚠️':'';
+        return `· <strong style="color:${color}">${s.size}</strong>${tag} 평균 ${effLabel} ${fmtW(s.avgEff)}`;
+      }).join('<br>');
+      // 사이즈별 분석 코멘트
+      let sizeComment='';
+      if(sizeList.length>=2){
+        const best=sizeList[0],worst=sizeList[sizeList.length-1];
+        const ratio=worst.avgEff/best.avgEff;
+        sizeComment+=` <strong style="color:var(--up)">${best.size}</strong>이 ${effLabel} ${fmtW(best.avgEff)}로 가장 효율적입니다.`;
+        if(ratio>1.5){
+          sizeComment+=` <strong style="color:var(--down)">${worst.size}</strong>은 ${fmtW(worst.avgEff)}로 최우수 대비 <strong style="color:var(--down)">${ratio.toFixed(1)}배</strong> 높아 사이즈 효율 개선이 필요합니다.`;
+          // 베스트 사이즈로 대체 추천
+          sizeComment+=`<br>💡 ${worst.size} 소재를 ${best.size} 사이즈로 전환하거나 비중을 줄이는 방향을 검토해보세요.`;
+        } else {
+          sizeComment+=` 사이즈 간 ${effLabel} 편차가 크지 않아 균일한 효율을 보이고 있습니다.`;
+        }
+      }
+      msgs.push(`<span style="color:var(--text2)">📐 <strong>사이즈별 ${effLabel} 효율 (낮을수록 우수):</strong><br>${sizeRows}${sizeComment?'<br><br>'+sizeComment:''}</span>`);
+    }
+
+    if(msgs.length>0){
+      html+=`<div style="display:flex;flex-direction:column;gap:8px;padding-top:8px;font-size:12px;line-height:1.7;word-break:break-word;overflow-wrap:break-word">${msgs.map(m=>`<div style="word-break:break-word">${m}</div>`).join('')}</div>`;
+    }
   }
   if(!html){
     const fallback=data.slice(0,topN).map(d=>`<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)">${d.name} · 비용 ${fmtW(d.cost)}</div>`).join('');
@@ -1027,7 +1136,7 @@ function renderCreativesTable(os){
     if(os==='pc'){const g=getGA(r);creG[k].visit+=g.visit;creG[k].inquiry+=g.inquiry;creG[k].complete+=g.complete;}
   });
 
-  // CPI 기준 내림차순 (CPI 없는 건 맨 뒤)
+  // MO: CPI 오름차순, PC: CPA 내림차순
   const data=Object.values(creG).map(d=>({...d,
     ctr:d.imp>0?d.clk/d.imp:0,cpc:d.clk>0?d.cost/d.clk:0,
     cpi:d.af>0?d.cost/d.af:0,cvr:d.clk>0?d.af/d.clk:0,
@@ -1039,9 +1148,11 @@ function renderCreativesTable(os){
       if(!a.cpa_visit)return 1;if(!b.cpa_visit)return -1;
       return b.cpa_visit-a.cpa_visit;
     }
-    if(!a.cpi&&!b.cpi)return 0;
-    if(!a.cpi)return 1;if(!b.cpi)return -1;
-    return b.cpi-a.cpi;
+    // MO: CPI 오름차순 (설치 0건은 맨 뒤)
+    const aHas=a.af>0, bHas=b.af>0;
+    if(!aHas&&!bHas)return 0;
+    if(!aHas)return 1;if(!bHas)return -1;
+    return a.cpi-b.cpi;
   });
 
   const total=data.length;
@@ -1067,13 +1178,13 @@ function renderCreativesTable(os){
   const badIdx=new Set(badCandidates.slice(0,topN).map(({i})=>i));
 
   const maxImp=Math.max(...data.map(d=>d.imp),1);
-  const pcExtra=os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>CVR(카톡)</th><th>예약완료</th><th>CPA(예약)</th>':'';
+  const pcExtra=os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>CVR(카톡)</th><th>예약완료</th><th>CPA(예약)</th><th>CVR(예약)</th>':'';
 
   const contentEl=document.getElementById(`cre_content_${os}`);
   if(!contentEl)return;
   contentEl.innerHTML=`
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-      <span style="font-size:11px;color:var(--text2)">${os==='pc'?'CPA':'CPI'} 기준 내림차순 · </span>
+      <span style="font-size:11px;color:var(--text2)">${os==='pc'?'CPA 기준 내림차순':'CPI 기준 오름차순'} · </span>
       <span><span class="badge-bad">저효율 Top${topN}</span> 높은 ${os==='pc'?'CPA':'CPI'}</span>
       <span><span class="badge-good">고효율 Top${topN}</span> 낮은 ${os==='pc'?'CPA':'CPI'}</span>
     </div>
@@ -1095,7 +1206,7 @@ function renderCreativesTable(os){
           const isGood=goodIdx.has(i);
           const rowCls=isBad?'highlight-row-bad':isGood?'highlight-row-good':'';
           const badge=isBad?`<span class="badge-bad">저효율</span>`:isGood?`<span class="badge-good">고효율</span>`:'';
-          const pcCells=os==='pc'?`<td>${fmtN(d.visit)}</td><td>${fmtW(d.visit>0?d.cost/d.visit:0)}</td><td>${fmtP1(d.clk>0?d.visit/d.clk:0)}</td><td>${fmtN(d.inquiry)}</td><td>${fmtW(d.inquiry>0?d.cost/d.inquiry:0)}</td><td>${fmtP1(d.clk>0?d.inquiry/d.clk:0)}</td><td>${fmtN(d.complete)}</td><td>${fmtW(d.complete>0?d.cost/d.complete:0)}</td>`:'';
+          const pcCells=os==='pc'?`<td>${fmtN(d.visit)}</td><td>${fmtW(d.visit>0?d.cost/d.visit:0)}</td><td>${fmtP1(d.clk>0?d.visit/d.clk:0)}</td><td>${fmtN(d.inquiry)}</td><td>${fmtW(d.inquiry>0?d.cost/d.inquiry:0)}</td><td>${fmtP1(d.clk>0?d.inquiry/d.clk:0)}</td><td>${fmtN(d.complete)}</td><td>${fmtW(d.complete>0?d.cost/d.complete:0)}</td><td>${fmtP1(d.clk>0?d.complete/d.clk:0)}</td>`:'';
           return`<tr class="${rowCls}">
             <td title="${d.name}" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.name.length>26?d.name.slice(0,26)+'…':d.name}${badge}</td>
             <td>${uspBadge(d.usp)}</td>
@@ -1156,13 +1267,13 @@ function renderUSP(os){
           <th>USP</th><th>소재수</th>
           <th>노출</th><th>클릭</th><th>CTR</th>
           <th>비용(VAT별도)</th><th>CPC</th>
-          ${os!=='pc'?'<th>AF설치</th><th>CPI(AF)</th><th>CTI</th>':'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>예약완료</th>'}
+          ${os!=='pc'?'<th>AF설치</th><th>CPI(AF)</th><th>CTI</th>':'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>CVR(카톡)</th><th>예약완료</th><th>CPA(예약)</th><th>CVR(예약)</th>'}
         </tr></thead>
         <tbody>${data.map(d=>`<tr>
           <td>${uspBadge(d.usp)}</td><td style="text-align:right">${d.creCount}</td>
           <td>${fmtN(d.imp)}</td><td>${fmtN(d.clk)}</td><td>${fmtP(d.ctr)}</td>
           <td style="color:var(--acc4)">${fmtW(d.cost)}</td><td>${fmtW(d.cpc)}</td>
-          ${os!=='pc'?`<td style="color:var(--acc)">${fmtN(d.af)}</td><td>${fmtW(d.cpi)}</td><td>${fmtP1(d.cvr)}</td>`:`<td>${fmtN(d.visit)}</td><td>${fmtW(d.visit>0?d.cost/d.visit:0)}</td><td>${fmtP1(d.clk>0?d.visit/d.clk:0)}</td><td>${fmtN(d.inquiry)}</td><td>${fmtN(d.complete)}</td>`}
+          ${os!=='pc'?`<td style="color:var(--acc)">${fmtN(d.af)}</td><td>${fmtW(d.cpi)}</td><td>${fmtP1(d.cvr)}</td>`:`<td>${fmtN(d.visit)}</td><td>${fmtW(d.visit>0?d.cost/d.visit:0)}</td><td>${fmtP1(d.clk>0?d.visit/d.clk:0)}</td><td>${fmtN(d.inquiry)}</td><td>${fmtW(d.inquiry>0?d.cost/d.inquiry:0)}</td><td>${fmtP1(d.clk>0?d.inquiry/d.clk:0)}</td><td>${fmtN(d.complete)}</td><td>${fmtW(d.complete>0?d.cost/d.complete:0)}</td><td>${fmtP1(d.clk>0?d.complete/d.clk:0)}</td>`}
         </tr>`).join('')}</tbody></table>
       </div>
     </div>`;
@@ -1172,7 +1283,7 @@ function renderUSP(os){
   const effKey2=os==='pc'?'cpa_visit':'cpi';
   const cpiData=[...data].filter(d=>(d[effKey2]||0)>0).sort((a,b)=>a[effKey2]-b[effKey2]);
   if(S.charts[cpiCid])S.charts[cpiCid].destroy();
-  S.charts[cpiCid]=new Chart(document.getElementById(cpiCid).getContext('2d'),{type:'bar',data:{labels:cpiData.map(d=>d.usp),datasets:[{label:os==='pc'?'CPA(매물)':'CPI(AF)',data:cpiData.map(d=>d[effKey2]),backgroundColor:cpiData.map(d=>USP_PALETTE[d.usp]||'#7a8fad'),borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a8fad',font:{size:11}},grid:{color:'#1e2636'}},y:{ticks:{color:'#3d4f68',font:{size:10},callback:v=>'₩'+Math.round(v/1000)+'k'},grid:{color:'#1e2636'}}}}});
+  S.charts[cpiCid]=new Chart(document.getElementById(cpiCid).getContext('2d'),{type:'bar',data:{labels:cpiData.map(d=>d.usp),datasets:[{label:os==='pc'?'CPA(매물)':'CPI(AF)',data:cpiData.map(d=>d[effKey2]),backgroundColor:cpiData.map(d=>USP_PALETTE[d.usp]||'#7a8fad'),borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'₩'+Math.round(ctx.raw).toLocaleString('ko-KR')}}},scales:{x:{ticks:{color:'#7a8fad',font:{size:11}},grid:{color:'#1e2636'}},y:{ticks:{color:'#3d4f68',font:{size:10},callback:v=>v>=1000?'₩'+Math.round(v/1000)+'k':'₩'+Math.round(v)},grid:{color:'#1e2636'}}}}});
 }
 
 // ══════════════════════════════════════
@@ -1264,7 +1375,7 @@ function renderWeekTable(os){
           <th>주차</th><th>기간</th>
           <th>노출</th><th>클릭</th><th>CTR</th>
           <th>비용</th><th>CPC</th>
-          ${os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>예약완료</th><th>CPA(예약)</th>':'<th>AF설치</th><th>CPI(AF)</th><th>CTI</th>'}
+          ${os==='pc'?'<th>매물상세</th><th>CPA(매물)</th><th>CVR(매물)</th><th>카톡문의</th><th>CPA(카톡)</th><th>CVR(카톡)</th><th>예약완료</th><th>CPA(예약)</th><th>CVR(예약)</th>':'<th>AF설치</th><th>CPI(AF)</th><th>CTI</th>'}
         </tr></thead>
         <tbody>${weekData.map((d,i)=>{
           const prev=i>0?weekData[i-1]:null;
