@@ -162,6 +162,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;color
     <div class="sub-tab" data-sub="creatives">소재별</div>
     <div class="sub-tab" data-sub="budget">예산 소진</div>
     <div class="sub-tab" data-sub="weekcompare">주차별 비교</div>
+    <div class="sub-tab" data-sub="review">주간 리뷰</div>
     <div class="sub-tab" data-sub="prompt">AI 분석</div>
   </div>
   <!-- 우측 콘텐츠 -->
@@ -203,6 +204,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;color
     <div class="sub-panel" id="mo-adgroups"></div>
     <div class="sub-panel" id="mo-weekcompare"></div>
     <div class="sub-panel" id="mo-budget"></div>
+    <div class="sub-panel" id="mo-review"></div>
     <div class="sub-panel" id="mo-prompt"></div>
   </div>
   <div class="main-panel" id="main-pc">
@@ -213,6 +215,7 @@ code{background:var(--s2);padding:2px 6px;border-radius:4px;font-size:11px;color
     <div class="sub-panel" id="pc-adgroups"></div>
     <div class="sub-panel" id="pc-weekcompare"></div>
     <div class="sub-panel" id="pc-budget"></div>
+    <div class="sub-panel" id="pc-review"></div>
     <div class="sub-panel" id="pc-prompt"></div>
   </div>
 </div>
@@ -1394,7 +1397,12 @@ function renderUSP(os){
       <div class="chart-card"><div class="chart-title">${cpiLabel}</div><div class="chart-sub">낮을수록 효율적</div><div class="chart-wrap"><canvas id="${cpiCid}"></canvas></div></div>
     </div>
     <div class="table-card">
-      <div class="table-head-row"><span class="table-title">USP별 성과</span><span class="table-meta">${data.length}개 USP · ${fmtKR(S.startDate)}~${fmtKR(S.endDate)}</span></div>
+      <div class="table-head-row">
+        <span class="table-title">USP별 성과</span>
+        <span class="table-meta">${data.length}개 USP · ${fmtKR(S.startDate)}~${fmtKR(S.endDate)}</span>
+        <button onclick="copyUspPieData('${os}')" style="margin-left:auto;background:var(--acc);color:#000;border:none;font-family:var(--font);font-size:11px;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap">📊 PPT 파이차트 데이터 복사</button>
+        <span id="usp_ppt_copied_${os}" style="display:none;font-size:11px;color:var(--acc);font-weight:600;margin-left:6px">✅ 복사됨!</span>
+      </div>
       <div class="overflow-x">
         <table><thead><tr>
           <th>USP</th><th>소재수</th>
@@ -1420,6 +1428,65 @@ function renderUSP(os){
 }
 
 // ══════════════════════════════════════
+// USP 파이차트 데이터 복사
+// ══════════════════════════════════════
+function copyUspPieData(os){
+  const rows=filterGfa(S.gfa,os);
+  const uspG={};
+  rows.forEach(r=>{
+    const u=extractUSP(r['광고 소재 이름']);
+    if(!uspG[u])uspG[u]={usp:u,af:0,visit:0};
+    uspG[u].af+=getAF(r);
+    if(os==='pc'){const g=getGA(r);uspG[u].visit+=g.visit;}
+  });
+  const data=Object.values(uspG).sort((a,b)=>b.af-a.af);
+  const valKey=os==='mo'?'af':'visit';
+  const label=os==='mo'?'설치수':'매물상세';
+  const total=data.reduce((s,d)=>s+(d[valKey]||0),0);
+  if(!total){alert('해당 기간 전환 데이터가 없습니다.');return;}
+
+  const font=`font-family:'NanumSquareNeo','NanumSquare Neo ExtraBold','나눔스퀘어 네오',sans-serif;font-weight:800;font-size:9pt;`;
+  const border=`border:1px solid #d1d5db;`;
+  const cellBase=`${border}padding:5px 10px;white-space:nowrap;${font}`;
+  const headStyle=`${cellBase}background:#1e293b;color:#ffffff;text-align:center;`;
+  const cellA=`${cellBase}background:#f8fafc;color:#1e293b;text-align:left;`;
+  const cellB=`${cellBase}background:#f8fafc;color:#1e293b;text-align:right;`;
+
+  const periodLabel=`${fmtKR(S.startDate)}~${fmtKR(S.endDate)}`;
+
+  const rows2=data.filter(d=>(d[valKey]||0)>0).map(d=>{
+    const pct=((d[valKey]/total)*100).toFixed(2)+'%';
+    return`<tr><td style="${cellA}">${d.usp}</td><td style="${cellB}">${pct}</td></tr>`;
+  }).join('');
+
+  const html=`<table style="border-collapse:collapse;"><thead><tr><th style="${headStyle}" colspan="2">${label} 비중 (${periodLabel})</th></tr><tr><th style="${headStyle}">USP</th><th style="${headStyle}">${label}</th></tr></thead><tbody>${rows2}</tbody></table>`;
+
+  // 숨김 div에 렌더
+  let tmpEl=document.getElementById(`usp_ppt_tmp_${os}`);
+  if(!tmpEl){tmpEl=document.createElement('div');tmpEl.id=`usp_ppt_tmp_${os}`;tmpEl.style.cssText='position:absolute;left:-9999px;top:0;';document.body.appendChild(tmpEl);}
+  tmpEl.innerHTML=html;
+
+  const showCopied=()=>{
+    const lbl=document.getElementById(`usp_ppt_copied_${os}`);
+    if(lbl){lbl.style.display='inline';setTimeout(()=>lbl.style.display='none',2500);}
+  };
+
+  try{
+    const blob=new Blob([html],{type:'text/html'});
+    const ci=new ClipboardItem({'text/html':blob,'text/plain':new Blob([`USP\t${label}\n`+data.filter(d=>(d[valKey]||0)>0).map(d=>`${d.usp}\t${((d[valKey]/total)*100).toFixed(2)}%`).join('\n')],{type:'text/plain'})});
+    navigator.clipboard.write([ci]).then(showCopied).catch(()=>{
+      const range=document.createRange();range.selectNode(tmpEl);
+      const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+      document.execCommand('copy');sel.removeAllRanges();showCopied();
+    });
+  }catch(e){
+    const range=document.createRange();range.selectNode(tmpEl);
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+    document.execCommand('copy');sel.removeAllRanges();showCopied();
+  }
+}
+
+// ══════════════════════════════════════
 // 주차별 비교
 // ══════════════════════════════════════
 function renderWeekCompare(os){
@@ -1429,25 +1496,31 @@ function renderWeekCompare(os){
   const camps=['전체',...new Set(allOsRows.map(r=>r['캠페인 이름']).filter(Boolean))].sort();
   const weeks=[...new Set(allOsRows.map(r=>getWeekNum(parseGfaDate(r['기간']))).filter(Boolean))].sort((a,b)=>a-b);
 
+  const wkLast=weeks[weeks.length-1];
+  const wkPrev=weeks.length>=2?weeks[weeks.length-2]:wkLast;
+
   el.innerHTML=`
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:8px">
         <span class="fl">캠페인</span>
         <select id="wk_camp_${os}" onchange="renderWeekTable('${os}')">
-          ${camps.map(c=>`<option value="${c}">${c==='전체'?'전체':c.length>35?c.slice(0,35)+'…':c}</option>`).join('')}
+          ${camps.map(c=>`<option value="${c}" ${c==='전체'?'selected':''}>${c==='전체'?'전체':c.length>35?c.slice(0,35)+'…':c}</option>`).join('')}
         </select>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="fl">비교 주차 A</span>
         <select id="wk_a_${os}" onchange="renderWeekTable('${os}')">
-          ${weeks.map(w=>`<option value="${w}">${w}주차</option>`).join('')}
+          ${weeks.map(w=>`<option value="${w}" ${w===wkPrev?'selected':''}>${w}주차</option>`).join('')}
         </select>
         <span class="fl">vs B</span>
         <select id="wk_b_${os}" onchange="renderWeekTable('${os}')">
-          ${weeks.map((w,i)=>`<option value="${w}" ${i===weeks.length-1?'selected':''}>${w}주차</option>`).join('')}
+          ${weeks.map(w=>`<option value="${w}" ${w===wkLast?'selected':''}>${w}주차</option>`).join('')}
         </select>
       </div>
+      <button onclick="copyPptTable('${os}')" style="margin-left:auto;background:var(--acc);color:#000;border:none;font-family:var(--font);font-size:12px;font-weight:700;padding:8px 16px;border-radius:6px;cursor:pointer;white-space:nowrap">📊 PPT 표 복사</button>
+      <span id="wk_ppt_copied_${os}" style="display:none;font-size:12px;color:var(--acc);font-weight:600">✅ 복사됨!</span>
     </div>
+    <div id="wk_ppt_${os}" style="position:absolute;left:-9999px;top:0"></div>
     <div id="wk_charts_${os}"></div>
     <div id="wk_table_${os}"></div>
     <div id="wk_comment_${os}"></div>`;
@@ -1538,6 +1611,130 @@ function renderWeekTable(os){
       fetchComment(weekCommentText,`wk_comment_${os}`);
     }
   }
+}
+
+// ══════════════════════════════════════
+// PPT 주차 비교 표
+// ══════════════════════════════════════
+function buildPptTable(os,dA,dB,wA,wB){
+  const N=v=>v==null||isNaN(v)?'-':Math.round(v).toLocaleString('ko-KR');
+  const W=v=>v==null||isNaN(v)?'-':Math.round(v).toLocaleString('ko-KR');
+  const Pct=v=>v==null||isNaN(v)?'-':(v*100).toFixed(2)+'%';
+
+  const wow=(cur,prv)=>{
+    if(!prv||prv===0)return{txt:'-',color:'#333333'};
+    const pct=(cur-prv)/prv*100;
+    const color=pct>0?'#dc2626':pct<0?'#2563eb':'#555555';
+    return{txt:(pct>=0?'+':'')+pct.toFixed(2)+'%',color};
+  };
+  const wowPp=(cur,prv)=>{
+    if(prv==null||isNaN(prv))return{txt:'-',color:'#333333'};
+    const diff=(cur-prv)*100;
+    const color=diff>0?'#dc2626':diff<0?'#2563eb':'#555555';
+    return{txt:(diff>=0?'+':'')+diff.toFixed(2)+'% (p)',color};
+  };
+  const wowNone=()=>({txt:'-',color:'#555555'});
+
+  const font=`font-family:'NanumSquareNeo','NanumSquare Neo ExtraBold','나눔스퀘어 네오',sans-serif;font-weight:800;font-size:9pt;`;
+  const cellStyle=`border:1px solid #d1d5db;padding:6px 10px;text-align:center;white-space:nowrap;${font}`;
+  const headStyle=`${cellStyle}background:#1e293b;color:#ffffff;`;
+  const numStyleA=`${cellStyle}background:#f8fafc;color:#1e293b;`;
+  const numStyleB=`${cellStyle}background:#f0f9ff;color:#1e293b;`;
+  const labelStyle=`${cellStyle}background:#f1f5f9;color:#1e293b;`;
+  const wowBg=`background:#fafafa;`;
+
+  const cpmA=dA.imp>0?dA.cost/dA.imp*1000:0;
+  const cpmB=dB.imp>0?dB.cost/dB.imp*1000:0;
+
+  let cols;
+  if(os==='mo'){
+    const ctiA=dA.clk>0?dA.af/dA.clk:0;
+    const ctiB=dB.clk>0?dB.af/dB.clk:0;
+    cols=[
+      {label:'주차',vA:`${wA}주차`,vB:`${wB}주차`,wow:null,isLabel:true},
+      {label:'광고비',vA:N(Math.round(dA.cost)),vB:N(Math.round(dB.cost)),wow:wow(dB.cost,dA.cost)},
+      {label:'노출',vA:N(dA.imp),vB:N(dB.imp),wow:wow(dB.imp,dA.imp)},
+      {label:'클릭',vA:N(dA.clk),vB:N(dB.clk),wow:wow(dB.clk,dA.clk)},
+      {label:'설치',vA:N(dA.af),vB:N(dB.af),wow:wow(dB.af,dA.af)},
+      {label:'CPM',vA:W(Math.round(cpmA)),vB:W(Math.round(cpmB)),wow:wow(cpmB,cpmA)},
+      {label:'CPC',vA:W(Math.round(dA.cpc)),vB:W(Math.round(dB.cpc)),wow:wow(dB.cpc,dA.cpc)},
+      {label:'CPI',vA:W(Math.round(dA.cpi)),vB:W(Math.round(dB.cpi)),wow:wow(dB.cpi,dA.cpi)},
+      {label:'CTR',vA:Pct(dA.ctr),vB:Pct(dB.ctr),wow:wowPp(dB.ctr,dA.ctr)},
+      {label:'Click to Install',vA:Pct(ctiA),vB:Pct(ctiB),wow:wowPp(ctiB,ctiA)},
+    ];
+  } else {
+    // PC: GA4 기준
+    const cvrVisitA=dA.clk>0?dA.visit/dA.clk:0;
+    const cvrVisitB=dB.clk>0?dB.visit/dB.clk:0;
+    const cvrInqA=dA.clk>0?dA.inquiry/dA.clk:0;
+    const cvrInqB=dB.clk>0?dB.inquiry/dB.clk:0;
+    cols=[
+      {label:'주차',vA:`${wA}주차`,vB:`${wB}주차`,wow:null,isLabel:true},
+      {label:'광고비',vA:N(Math.round(dA.cost)),vB:N(Math.round(dB.cost)),wow:wow(dB.cost,dA.cost)},
+      {label:'노출',vA:N(dA.imp),vB:N(dB.imp),wow:wow(dB.imp,dA.imp)},
+      {label:'클릭',vA:N(dA.clk),vB:N(dB.clk),wow:wow(dB.clk,dA.clk)},
+      {label:'매물상세',vA:N(dA.visit),vB:N(dB.visit),wow:wow(dB.visit,dA.visit)},
+      {label:'구매예약',vA:N(dA.inquiry),vB:N(dB.inquiry),wow:dA.inquiry>0||dB.inquiry>0?wow(dB.inquiry,dA.inquiry):wowNone()},
+      {label:'CPM',vA:W(Math.round(cpmA)),vB:W(Math.round(cpmB)),wow:wow(cpmB,cpmA)},
+      {label:'CPC',vA:W(Math.round(dA.cpc)),vB:W(Math.round(dB.cpc)),wow:wow(dB.cpc,dA.cpc)},
+      {label:'CPA',vA:W(Math.round(dA.cpa_visit)),vB:W(Math.round(dB.cpa_visit)),wow:wow(dB.cpa_visit,dA.cpa_visit)},
+      {label:'CTR',vA:Pct(dA.ctr),vB:Pct(dB.ctr),wow:wowPp(dB.ctr,dA.ctr)},
+      {label:'Click-매물상세',vA:Pct(cvrVisitA),vB:Pct(cvrVisitB),wow:wowPp(cvrVisitB,cvrVisitA)},
+      {label:'Click-구매예약',vA:Pct(cvrInqA),vB:Pct(cvrInqB),wow:dA.inquiry>0||dB.inquiry>0?wowPp(cvrInqB,cvrInqA):wowNone()},
+    ];
+  }
+
+  const headerRow=`<tr>${cols.map(c=>`<th style="${headStyle}">${c.label}</th>`).join('')}</tr>`;
+  const rowA=`<tr>${cols.map(c=>`<td style="${c.isLabel?labelStyle:numStyleA}">${c.vA}</td>`).join('')}</tr>`;
+  const rowB=`<tr>${cols.map(c=>`<td style="${c.isLabel?labelStyle:numStyleB}">${c.vB}</td>`).join('')}</tr>`;
+  const rowWow=`<tr>${cols.map(c=>{
+    if(c.isLabel)return`<td style="${labelStyle}">WoW</td>`;
+    const w=c.wow;
+    return`<td style="${cellStyle}${wowBg}color:${w.color};">${w.txt}</td>`;
+  }).join('')}</tr>`;
+
+  return`<table style="border-collapse:collapse;min-width:900px;">${headerRow}${rowA}${rowB}${rowWow}</table>`;
+}
+
+function copyPptTable(os){
+  const wA=parseInt(document.getElementById(`wk_a_${os}`)?.value||0);
+  const wB=parseInt(document.getElementById(`wk_b_${os}`)?.value||0);
+  const campFilter=document.getElementById(`wk_camp_${os}`)?.value||'전체';
+  if(!wA||!wB){alert('비교 주차 A, B를 모두 선택해주세요.');return;}
+
+  const allOsRows=S.gfa.filter(r=>getOS(r['캠페인 이름'])===os&&(parseFloat(r['노출수'])||0)>0&&(campFilter==='전체'||r['캠페인 이름']===campFilter));
+  const weeks=[...new Set(allOsRows.map(r=>getWeekNum(parseGfaDate(r['기간']))).filter(Boolean))];
+  const getWData=w=>{const r=getWeekRange(w);const wr=allOsRows.filter(row=>{const d=parseGfaDate(row['기간']);return d>=r.start&&d<=r.end;});return sumRows(wr,os);};
+  const dA=getWData(wA),dB=getWData(wB);
+
+  const html=buildPptTable(os,dA,dB,wA,wB);
+
+  // 숨겨진 div에 렌더 후 ClipboardItem으로 HTML+text 복사
+  const pptEl=document.getElementById(`wk_ppt_${os}`);
+  if(pptEl){pptEl.innerHTML=html;}
+
+  const copied=()=>{
+    const lbl=document.getElementById(`wk_ppt_copied_${os}`);
+    if(lbl){lbl.style.display='inline';setTimeout(()=>lbl.style.display='none',2500);}
+  };
+
+  try{
+    const blob=new Blob([html],{type:'text/html'});
+    const plain=`${wA}주차\t${wB}주차\tWoW\n`; // fallback
+    const ci=new ClipboardItem({'text/html':blob,'text/plain':new Blob([plain],{type:'text/plain'})});
+    navigator.clipboard.write([ci]).then(copied).catch(()=>fallbackHtmlCopy(html,copied));
+  }catch(e){fallbackHtmlCopy(html,copied);}
+}
+
+function fallbackHtmlCopy(html,cb){
+  const el=document.getElementById('wk_ppt_mo')||document.getElementById('wk_ppt_pc');
+  if(!el)return;
+  const range=document.createRange();
+  range.selectNode(el);
+  const sel=window.getSelection();
+  sel.removeAllRanges();sel.addRange(range);
+  try{document.execCommand('copy');cb();}catch(e){alert('복사에 실패했습니다. 표를 직접 선택해서 복사해주세요.');}
+  sel.removeAllRanges();
 }
 
 // ══════════════════════════════════════
@@ -1989,6 +2186,564 @@ function fallbackCopy(text,os){
 }
 
 // ══════════════════════════════════════
+// 주간 리뷰 (PPT 복사 허브)
+// ══════════════════════════════════════
+function renderReview(os){
+  const id=`${os}-review`;
+  const el=document.getElementById(id);if(!el)return;
+  const allOsRows=S.gfa.filter(r=>getOS(r['캠페인 이름'])===os&&(parseFloat(r['노출수'])||0)>0);
+  const camps=['전체',...new Set(allOsRows.map(r=>r['캠페인 이름']).filter(Boolean))].sort();
+  const weeks=[...new Set(allOsRows.map(r=>getWeekNum(parseGfaDate(r['기간']))).filter(Boolean))].sort((a,b)=>a-b);
+  const wkLast=weeks[weeks.length-1]||0;
+  const wkPrev=weeks.length>=2?weeks[weeks.length-2]:wkLast;
+
+  el.innerHTML=`
+    <div style="padding:0 0 20px">
+      <!-- 리뷰 필터 -->
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);margin-bottom:20px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:var(--text2)">캠페인</span>
+        <select id="rv_camp_${os}" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:12px;padding:5px 8px;border-radius:5px">
+          ${camps.map(c=>`<option value="${c}" ${c==='전체'?'selected':''}>${c==='전체'?'전체':c.length>40?c.slice(0,40)+'…':c}</option>`).join('')}
+        </select>
+        <div style="width:1px;height:20px;background:var(--border2)"></div>
+        <span style="font-size:12px;font-weight:700;color:var(--text2)">주차 비교</span>
+        <span style="font-size:11px;color:var(--text3)">A</span>
+        <select id="rv_wk_a_${os}" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:12px;padding:5px 8px;border-radius:5px">
+          ${weeks.map(w=>`<option value="${w}" ${w===wkPrev?'selected':''}>${w}주차</option>`).join('')}
+        </select>
+        <span style="font-size:11px;color:var(--text3)">vs B</span>
+        <select id="rv_wk_b_${os}" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:12px;padding:5px 8px;border-radius:5px">
+          ${weeks.map(w=>`<option value="${w}" ${w===wkLast?'selected':''}>${w}주차</option>`).join('')}
+        </select>
+        <div style="width:1px;height:20px;background:var(--border2)"></div>
+        <button onclick="renderReviewCards('${os}')" style="background:var(--acc);color:#000;border:none;font-family:var(--font);font-size:12px;font-weight:700;padding:7px 16px;border-radius:6px;cursor:pointer">적용</button>
+      </div>
+      <div id="rv_cards_${os}"></div>
+    </div>`;
+  renderReviewCards(os);
+}
+
+function renderReviewCards(os){
+  const el=document.getElementById(`rv_cards_${os}`);if(!el)return;
+  const campFilter=document.getElementById(`rv_camp_${os}`)?.value||'전체';
+  const wA=parseInt(document.getElementById(`rv_wk_a_${os}`)?.value||0);
+  const wB=parseInt(document.getElementById(`rv_wk_b_${os}`)?.value||0);
+
+  // USP 기간 = A·B 주차 중 더 넓은 범위 전체
+  const rA=wA?getWeekRange(wA):null;
+  const rB=wB?getWeekRange(wB):null;
+  const rvStart=(rA&&rB)?[rA.start,rB.start].sort()[0]:(rA?.start||rB?.start||S.startDate);
+  const rvEnd=(rA&&rB)?[rA.end,rB.end].sort().pop():(rA?.end||rB?.end||S.endDate);
+  const periodLabel=`${fmtKR(rvStart)}~${fmtKR(rvEnd)}`;
+
+  const font=`font-family:'NanumSquareNeo','NanumSquare Neo ExtraBold','나눔스퀘어 네오',sans-serif;font-weight:800;font-size:9pt;`;
+
+  // ── 공통: 복사 카드 렌더 헬퍼
+  const card=(title,sub,previewHtml,copyFn,copyId)=>`
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">${title}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${sub}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onclick="${copyFn}" style="background:var(--acc);color:#000;border:none;font-family:var(--font);font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer">📋 복사</button>
+          <span id="${copyId}" style="display:none;font-size:11px;color:var(--acc);font-weight:600">✅ 복사됨!</span>
+        </div>
+      </div>
+      <div style="padding:16px 18px;overflow-x:auto">${previewHtml}</div>
+    </div>`;
+
+  // ─── 1. WoW 주차 비교표
+  let wowHtml='<div style="color:var(--text3);font-size:12px">주차를 선택해주세요.</div>';
+  if(wA&&wB){
+    const filtRows=S.gfa.filter(r=>getOS(r['캠페인 이름'])===os&&(parseFloat(r['노출수'])||0)>0&&(campFilter==='전체'||r['캠페인 이름']===campFilter));
+    const getWD=w=>{const r=getWeekRange(w);const wr=filtRows.filter(row=>{const d=parseGfaDate(row['기간']);return d>=r.start&&d<=r.end;});return sumRows(wr,os);};
+    const dA=getWD(wA),dB=getWD(wB);
+    window[`_rv_wow_dA_${os}`]=dA;
+    window[`_rv_wow_dB_${os}`]=dB;
+    wowHtml=buildPptTable(os,dA,dB,wA,wB);
+  }
+
+  // ─── 2. USP 파이차트 데이터 (기간 기준)
+  const allOsRows=S.gfa.filter(r=>getOS(r['캠페인 이름'])===os&&(parseFloat(r['노출수'])||0)>0&&(campFilter==='전체'||r['캠페인 이름']===campFilter));
+  const periodRows=allOsRows.filter(r=>{const d=parseGfaDate(r['기간']);return d>=rvStart&&d<=rvEnd;});
+  const uspG={};
+  periodRows.forEach(r=>{
+    const u=extractUSP(r['광고 소재 이름']);
+    if(!uspG[u])uspG[u]={usp:u,af:0,visit:0};
+    uspG[u].af+=getAF(r);
+    if(os==='pc'){const g=getGA(r);uspG[u].visit+=g.visit;}
+  });
+  const uspData=Object.values(uspG).sort((a,b)=>b.af-a.af);
+  const valKey=os==='mo'?'af':'visit';
+  const convLabel=os==='mo'?'설치수':'매물상세';
+  const total=uspData.reduce((s,d)=>s+(d[valKey]||0),0);
+
+  const border=`border:1px solid #d1d5db;`;
+  const cellBase=`${border}padding:5px 10px;white-space:nowrap;${font}`;
+  const headStyle=`${cellBase}background:#1e293b;color:#ffffff;text-align:center;`;
+  const cellA=`${cellBase}background:#f8fafc;color:#1e293b;text-align:left;`;
+  const cellB=`${cellBase}background:#f8fafc;color:#1e293b;text-align:right;`;
+
+  let uspPieHtml='<div style="color:var(--text3);font-size:12px">해당 기간 전환 데이터 없음</div>';
+  if(total>0){
+    const rows2=uspData.filter(d=>(d[valKey]||0)>0).map(d=>`<tr><td style="${cellA}">${d.usp}</td><td style="${cellB}">${((d[valKey]/total)*100).toFixed(2)}%</td></tr>`).join('');
+    uspPieHtml=`<table style="border-collapse:collapse;"><thead><tr><th style="${headStyle}">USP</th><th style="${headStyle}">${convLabel}</th></tr></thead><tbody>${rows2}</tbody></table>`;
+  }
+
+  // ─── 3. 일자별
+  const dateG={};
+  periodRows.forEach(r=>{
+    const d=parseGfaDate(r['기간']);if(!d)return;
+    if(!dateG[d])dateG[d]={date:d,af:0,cost:0,clk:0,visit:0,inquiry:0};
+    dateG[d].af+=getAF(r);
+    dateG[d].cost+=((parseFloat(r['총비용'])||0)/1.1);
+    dateG[d].clk+=(parseFloat(r['클릭수'])||0);
+    if(os==='pc'){const g=getGA(r);dateG[d].visit+=g.visit;dateG[d].inquiry+=g.inquiry;}
+  });
+  const dateList=Object.values(dateG).sort((a,b)=>a.date.localeCompare(b.date));
+
+  let dailyHtml='<div style="color:var(--text3);font-size:12px">해당 기간 데이터 없음</div>';
+  if(dateList.length>0){
+    if(os==='mo'){
+      const dRows=dateList.map(d=>{
+        const eff=d.af>0?Math.round(d.cost/d.af):0;
+        return`<tr><td style="${cellA}text-align:left;">${d.date}</td><td style="${cellB}">${Math.round(d.af).toLocaleString('ko-KR')}</td><td style="${cellB}">${eff>0?eff.toLocaleString('ko-KR'):'-'}</td></tr>`;
+      }).join('');
+      dailyHtml=`<table style="border-collapse:collapse;"><thead><tr><th style="${headStyle}"> </th><th style="${headStyle}">설치수</th><th style="${headStyle}">CPI</th></tr></thead><tbody>${dRows}</tbody></table>`;
+    } else {
+      // PC: 표1 광고비+클릭수 / 표2 매물상세+CPA
+      const rows1=dateList.map(d=>`<tr><td style="${cellA}text-align:left;">${d.date}</td><td style="${cellB}">${Math.round(d.cost).toLocaleString('ko-KR')}</td><td style="${cellB}">${Math.round(d.clk).toLocaleString('ko-KR')}</td></tr>`).join('');
+      const rows2=dateList.map(d=>{const cpa=d.visit>0?Math.round(d.cost/d.visit):0;return`<tr><td style="${cellA}text-align:left;">${d.date}</td><td style="${cellB}">${Math.round(d.visit).toLocaleString('ko-KR')}</td><td style="${cellB}">${cpa>0?cpa.toLocaleString('ko-KR'):'-'}</td></tr>`;}).join('');
+      const tbl1=`<table style="border-collapse:collapse;"><thead><tr><th style="${headStyle}"> </th><th style="${headStyle}">광고비</th><th style="${headStyle}">클릭수</th></tr></thead><tbody>${rows1}</tbody></table>`;
+      const tbl2=`<table style="border-collapse:collapse;"><thead><tr><th style="${headStyle}"> </th><th style="${headStyle}">매물상세</th><th style="${headStyle}">CPA</th></tr></thead><tbody>${rows2}</tbody></table>`;
+      dailyHtml=`<div style="display:flex;gap:24px;flex-wrap:wrap">${tbl1}${tbl2}</div>`;
+    }
+  }
+
+  // ─── 4. BEST / WORST 소재표
+  // window 저장값 우선, 체크박스는 보조 (재렌더 시 DOM이 없으므로)
+  const bwCampCbs=[...document.querySelectorAll(`.rv_bw_cb_${os}:checked`)];
+  const bwSelected=bwCampCbs.length>0
+    ?bwCampCbs.map(cb=>cb.value)
+    :(window[`_bw_camp_sel_${os}`]||['전체']);
+  window[`_bw_camp_sel_${os}`]=bwSelected;
+  const bwCampFilter=bwSelected.includes('전체')||bwSelected.length===0?'전체':bwSelected.join(', ');
+  const bwCampList=bwCampFilter==='전체'?null:bwSelected;
+
+  const bwWkCbs=[...document.querySelectorAll(`.rv_bw_wk_cb_${os}:checked`)];
+  const bwWkSelected=bwWkCbs.length>0
+    ?bwWkCbs.map(cb=>parseInt(cb.value))
+    :(window[`_bw_wk_sel_${os}`]||[0]);
+  window[`_bw_wk_sel_${os}`]=bwWkSelected;
+  const bwWkAll=bwWkSelected.includes(0)||bwWkSelected.length===0;
+
+  const bwCampOnlyRows=S.gfa.filter(r=>getOS(r['캠페인 이름'])===os&&(parseFloat(r['노출수'])||0)>0);
+  const bwCamps=['전체',...new Set(bwCampOnlyRows.map(r=>r['캠페인 이름']).filter(Boolean))].sort();
+  const allWeeksForBw=[...new Set(bwCampOnlyRows.map(r=>getWeekNum(parseGfaDate(r['기간']))).filter(Boolean))].sort((a,b)=>a-b);
+
+  const bwRows=S.gfa.filter(r=>getOS(r['캠페인 이름'])===os&&(parseFloat(r['노출수'])||0)>0&&(!bwCampList||bwCampList.includes(r['캠페인 이름'])));
+  const bwPeriodRows=bwRows.filter(r=>{
+    const d=parseGfaDate(r['기간']);
+    if(bwWkAll)return d>=rvStart&&d<=rvEnd;
+    return bwWkSelected.some(w=>{const wr=getWeekRange(w);return d>=wr.start&&d<=wr.end;});
+  });
+
+  // 하단 필터 라벨
+  const bwWkLabel=bwWkAll?`${fmtKR(rvStart)}~${fmtKR(rvEnd)}`:bwWkSelected.map(w=>w+'주차').join(', ');
+
+  // 소재별 집계
+  const creG={};
+  bwPeriodRows.forEach(r=>{
+    const k=r['광고 소재 이름']||'unknown';
+    if(!creG[k])creG[k]={name:k,usp:extractUSP(r['광고 소재 이름']),imp:0,clk:0,cost:0,af:0,visit:0};
+    creG[k].imp+=(parseFloat(r['노출수'])||0);
+    creG[k].clk+=(parseFloat(r['클릭수'])||0);
+    creG[k].cost+=((parseFloat(r['총비용'])||0)/1.1);
+    creG[k].af+=getAF(r);
+    if(os==='pc'){const g=getGA(r);creG[k].visit+=g.visit;}
+  });
+  const creAll=Object.values(creG).map(d=>({...d,
+    ctr:d.imp>0?d.clk/d.imp:0,
+    cpc:d.clk>0?d.cost/d.clk:0,
+    cpi:os==='mo'?(d.af>0?d.cost/d.af:0):(d.visit>0?d.cost/d.visit:0),
+    conv:os==='mo'?d.af:d.visit,
+    cti:d.clk>0?(os==='mo'?d.af/d.clk:d.visit/d.clk):0,
+  }));
+
+  const totalCre=creAll.length;
+  const avgCost=creAll.reduce((s,d)=>s+d.cost,0)/Math.max(totalCre,1);
+  // 평균 광고비 이상 + CPI 있는 소재 우선 풀
+  let pool=creAll.filter(d=>d.cost>=avgCost&&d.cpi>0);
+  // 5개 미만이면 나머지에서 CPI 있는 소재로 채움
+  if(pool.length<5){
+    const poolNames=new Set(pool.map(d=>d.name));
+    const extra=creAll.filter(d=>d.cpi>0&&!poolNames.has(d.name))
+      .sort((a,b)=>b.cost-a.cost);
+    pool=[...pool,...extra].slice(0,Math.max(pool.length,5));
+  }
+  // 그래도 없으면 노출만 있어도 포함
+  if(pool.length<5){
+    const poolNames=new Set(pool.map(d=>d.name));
+    const extra=creAll.filter(d=>d.imp>0&&!poolNames.has(d.name))
+      .sort((a,b)=>b.cost-a.cost);
+    pool=[...pool,...extra];
+  }
+
+  const bestCre=[...pool].sort((a,b)=>a.cpi-b.cpi).slice(0,5);
+  const worstCre=[...pool].sort((a,b)=>b.cpi-a.cpi).slice(0,5);
+
+  const effLabel2=os==='mo'?'CPI':'CPA';
+  const convLabel2=os==='mo'?'설치':'매물상세';
+
+  const bwHeadStyle=`border:1px solid #d1d5db;padding:7px 10px;text-align:center;background:#1e293b;color:#fff;${font}white-space:nowrap;`;
+  const bwCellL=`border:1px solid #d1d5db;padding:6px 10px;background:#f8fafc;color:#1e293b;text-align:left;${font}white-space:nowrap;`;
+  const bwCellR=`border:1px solid #d1d5db;padding:6px 10px;background:#f8fafc;color:#1e293b;text-align:right;${font}white-space:nowrap;`;
+  const bwCellHi=(bg)=>`border:1px solid #d1d5db;padding:6px 10px;background:${bg};color:#1e293b;text-align:right;${font}white-space:nowrap;font-weight:900;`;
+
+  const bwTableHtml=(data,hiColor,caption)=>{
+    if(!data.length)return`<div style="color:var(--text3);font-size:12px">해당 조건의 소재 없음</div>`;
+    const footNote=`**평균 광고비 소진 이상 소재 중 ${effLabel2} ${caption} 소재 기준으로 ${data.length}종 선정 (미달 시 차순위 소재로 보충)`;
+    const rows=data.map(d=>`<tr>
+      <td style="${bwCellL}">${d.name}</td>
+      <td style="${bwCellL}">${d.usp}</td>
+      <td style="${bwCellR}">${Math.round(d.cost).toLocaleString('ko-KR')}</td>
+      <td style="${bwCellHi}(${hiColor}33)">${Math.round(d.conv).toLocaleString('ko-KR')}</td>
+      <td style="${bwCellR}">${Math.round(d.cpc).toLocaleString('ko-KR')}</td>
+      <td style="${bwCellHi}(${hiColor}33)">${Math.round(d.cpi).toLocaleString('ko-KR')}</td>
+      <td style="${bwCellR}">${(d.ctr*100).toFixed(2)}%</td>
+      <td style="${bwCellR}">${(d.cti*100).toFixed(2)}%</td>
+    </tr>`).join('');
+    return`<table style="border-collapse:collapse;width:100%;">
+      <thead><tr>
+        <th style="${bwHeadStyle}">소재명</th>
+        <th style="${bwHeadStyle}">소재 포인트</th>
+        <th style="${bwHeadStyle}">광고비</th>
+        <th style="${bwHeadStyle}">${convLabel2}</th>
+        <th style="${bwHeadStyle}">CPC</th>
+        <th style="${bwHeadStyle}">${effLabel2}</th>
+        <th style="${bwHeadStyle}">CTR</th>
+        <th style="${bwHeadStyle}">Click to Install</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="8" style="border:none;padding:6px 0;font-size:10px;color:#666;${font}">${footNote}</td></tr></tfoot>
+    </table>`;
+  };
+
+  const bestHtml=bwTableHtml(bestCre,'77,159,255','우수');
+  const worstHtml=bwTableHtml(worstCre,'239,68,68','저조');
+
+  // ── 카드 헬퍼 v2 (표 복사 + 분석 프롬프트 복사)
+  const card2=(title,sub,previewHtml,copyFn,copyId,promptFn,promptId)=>`
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700">${title}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${sub}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button onclick="${copyFn}" style="background:var(--acc);color:#000;border:none;font-family:var(--font);font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer">📋 표 복사</button>
+          <span id="${copyId}" style="display:none;font-size:11px;color:var(--acc);font-weight:600">✅ 복사됨!</span>
+          ${promptFn?`<button onclick="${promptFn}" style="background:var(--acc2);color:#fff;border:none;font-family:var(--font);font-size:12px;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer">🤖 분석 프롬프트 복사</button>
+          <span id="${promptId}" style="display:none;font-size:11px;color:var(--acc2);font-weight:600">✅ 복사됨!</span>`:''}
+        </div>
+      </div>
+      <div style="padding:16px 18px;overflow-x:auto">${previewHtml}</div>
+    </div>`;
+
+  // ─── 프롬프트 텍스트 생성
+  const N2=v=>v==null||isNaN(v)?'-':Math.round(v).toLocaleString('ko-KR');
+  const Pct2=v=>v==null||isNaN(v)?'-':(v*100).toFixed(2)+'%';
+  const dA2=window[`_rv_wow_dA_${os}`];
+  const dB2=window[`_rv_wow_dB_${os}`];
+  const ch2=(cur,prv)=>prv>0?((cur-prv)/prv*100).toFixed(1)+'%':'신규';
+  const convA2=dA2?(os==='mo'?dA2.af:dA2.visit):0;
+  const convB2=dB2?(os==='mo'?dB2.af:dB2.visit):0;
+  const cpiA2=dA2?(os==='mo'?dA2.cpi:dA2.cpa_visit):0;
+  const cpiB2=dB2?(os==='mo'?dB2.cpi:dB2.cpa_visit):0;
+  const cpmA2=dA2&&dA2.imp>0?dA2.cost/dA2.imp*1000:0;
+  const cpmB2=dB2&&dB2.imp>0?dB2.cost/dB2.imp*1000:0;
+  const ctiA2=dA2&&dA2.clk>0?(os==='mo'?dA2.af/dA2.clk:dA2.visit/dA2.clk):0;
+  const ctiB2=dB2&&dB2.clk>0?(os==='mo'?dB2.af/dB2.clk:dB2.visit/dB2.clk):0;
+
+  const wowText=dA2&&dB2?`[${wA}주차 vs ${wB}주차 WoW]
+항목 | ${wA}주차 | ${wB}주차 | 변화
+광고비 | ${N2(dA2.cost)} | ${N2(dB2.cost)} | ${ch2(dB2.cost,dA2.cost)}
+노출 | ${N2(dA2.imp)} | ${N2(dB2.imp)} | ${ch2(dB2.imp,dA2.imp)}
+클릭 | ${N2(dA2.clk)} | ${N2(dB2.clk)} | ${ch2(dB2.clk,dA2.clk)}
+${convLabel} | ${N2(convA2)} | ${N2(convB2)} | ${ch2(convB2,convA2)}
+${os==='pc'?`구매예약 | ${N2(dA2.inquiry)} | ${N2(dB2.inquiry)} | ${ch2(dB2.inquiry,dA2.inquiry)}\n`:''}CPM | ${N2(Math.round(cpmA2))} | ${N2(Math.round(cpmB2))} | ${ch2(cpmB2,cpmA2)}
+CPC | ${N2(Math.round(dA2.cpc))} | ${N2(Math.round(dB2.cpc))} | ${ch2(dB2.cpc,dA2.cpc)}
+${effLabel2} | ${N2(Math.round(cpiA2))} | ${N2(Math.round(cpiB2))} | ${ch2(cpiB2,cpiA2)}
+CTR | ${Pct2(dA2.ctr)} | ${Pct2(dB2.ctr)} | ${ch2(dB2.ctr,dA2.ctr)}
+${os==='mo'?`CTI(Click to Install) | ${Pct2(ctiA2)} | ${Pct2(ctiB2)} | ${ch2(ctiB2,ctiA2)}`:`Click-매물상세(CVR) | ${Pct2(ctiA2)} | ${Pct2(ctiB2)} | ${ch2(ctiB2,ctiA2)}\nClick-구매예약(CVR) | ${Pct2(dA2.clk>0?dA2.inquiry/dA2.clk:0)} | ${Pct2(dB2.clk>0?dB2.inquiry/dB2.clk:0)} | ${ch2(dB2.clk>0?dB2.inquiry/dB2.clk:0,dA2.clk>0?dA2.inquiry/dA2.clk:0)}`}`:'(주차 데이터 없음)';
+
+  const uspText2=uspData.filter(d=>(d[valKey]||0)>0).map(d=>`${d.usp}: ${d[valKey]}건 (${((d[valKey]/Math.max(total,1))*100).toFixed(2)}%)`).join('\n')||'(없음)';
+  const dailyText2=os==='mo'
+    ?dateList.map(d=>`${d.date} | 설치수: ${N2(d.af)} | CPI: ${N2(d.af>0?Math.round(d.cost/d.af):0)}`).join('\n')||'(없음)'
+    :dateList.map(d=>`${d.date} | 광고비: ${N2(d.cost)} | 클릭: ${N2(d.clk)} | 매물상세: ${N2(d.visit)} | CPA: ${N2(d.visit>0?Math.round(d.cost/d.visit):0)}`).join('\n')||'(없음)';
+  const bestText2=bestCre.map((d,i)=>`${i+1}. [${d.name}]\n   USP: ${d.usp} / 광고비: ${N2(d.cost)} / ${convLabel}: ${N2(d.conv)} / ${effLabel2}: ${N2(d.cpi)} / CTR: ${(d.ctr*100).toFixed(2)}% / CTI: ${(d.cti*100).toFixed(2)}%`).join('\n')||'(없음)';
+  const worstText2=worstCre.map((d,i)=>`${i+1}. [${d.name}]\n   USP: ${d.usp} / 광고비: ${N2(d.cost)} / ${convLabel}: ${N2(d.conv)} / ${effLabel2}: ${N2(d.cpi)} / CTR: ${(d.ctr*100).toFixed(2)}% / CTI: ${(d.cti*100).toFixed(2)}%`).join('\n')||'(없음)';
+
+  const baseCtx=`플랫폼: 네이버 GFA ${os==='mo'?'모바일':'PC'} | 캠페인: ${campFilter} | 기간: ${periodLabel}\n광고 목표: 인지도 및 트래픽(클릭 최적화) / CBO 자동입찰\n${os==='mo'?'전환 기준: AppsFlyer 인스톨(AF)':'전환 기준: GA4 매물상세 진입(VCD)'}`;
+
+  const summaryPrompt=`당신은 모바일 앱 광고 성과 분석 전문가입니다. 아래 데이터를 바탕으로 주간 Summary 코멘트를 작성해주세요.
+
+[운영 컨텍스트]
+${baseCtx}
+
+[WoW 주차 비교]
+${wowText}
+
+[USP별 ${convLabel} 비중]
+${uspText2}
+
+[일자별 추이]
+${dailyText2}
+
+---
+아래 형식으로 작성해주세요.
+- 핵심 지표 변화(광고비/${convLabel}/${effLabel2}) WoW 수치 직접 인용
+- 주목할 특이사항 및 원인 추론
+- 운영 방향 제안 (> 기호로 액션 표기)
+불릿(-) 형식, 간결하게, 수치 직접 인용 필수.
+
+---
+[PPT 요약본]
+위 상세 분석을 바탕으로 PPT 슬라이드에 바로 넣을 수 있는 요약본도 함께 작성해주세요.
+아래 조건을 지켜주세요.
+- 불릿(-) 3~5개 이내로 핵심만 압축
+- 각 불릿은 2줄 이내
+- 수치 직접 인용 유지
+- 운영 제안은 > 기호로 표기
+- 헤더 없이 불릿만 나열 (슬라이드에 바로 붙여넣을 수 있게)`;
+
+  const bestPrompt=`당신은 모바일 앱 광고 소재 분석 전문가입니다. 아래 Best Creative 데이터를 바탕으로 코멘트를 작성해주세요.
+
+[운영 컨텍스트]
+${baseCtx}
+선정 기준: 평균 광고비 이상 소재 중 ${effLabel2} 우수 TOP5 (미달 시 차순위 소재로 보충)
+
+[Best Creative TOP5]
+${bestText2}
+
+---
+아래 형식으로 작성해주세요.
+- Best 소재들의 공통 특징 (USP 유형, 소재 스타일, 포맷, 크기 등)
+- 고성과 원인 추론
+- > 향후 소재 기획 시 활용 포인트
+불릿(-) 형식, 소재명·수치 직접 인용 필수.
+
+---
+[PPT 요약본]
+위 상세 분석을 바탕으로 PPT 슬라이드에 바로 넣을 수 있는 요약본도 함께 작성해주세요.
+아래 조건을 지켜주세요.
+- 불릿(-) 3~5개 이내로 핵심만 압축
+- 각 불릿은 2줄 이내
+- 소재명·수치 직접 인용 유지
+- 기획 제안은 > 기호로 표기
+- 헤더 없이 불릿만 나열 (슬라이드에 바로 붙여넣을 수 있게)`;
+
+  const worstPrompt=`당신은 모바일 앱 광고 소재 분석 전문가입니다. 아래 Worst Creative 데이터를 바탕으로 코멘트를 작성해주세요.
+
+[운영 컨텍스트]
+${baseCtx}
+선정 기준: 평균 광고비 이상 소재 중 ${effLabel2} 저조 TOP5 (미달 시 차순위 소재로 보충)
+
+[Worst Creative TOP5]
+${worstText2}
+
+[참고: Best Creative TOP5]
+${bestText2}
+
+---
+아래 형식으로 작성해주세요.
+- Worst 소재들의 공통 문제점 (USP 유형, 소재 스타일, 포맷, 비주얼 가시성 등)
+- 저성과 원인 추론 (GFA 지면 특성, CTR/CTI 관계 등 고려)
+- > 개선 방향 및 테스트 제안
+불릿(-) 형식, 소재명·수치 직접 인용 필수.
+
+---
+[PPT 요약본]
+위 상세 분석을 바탕으로 PPT 슬라이드에 바로 넣을 수 있는 요약본도 함께 작성해주세요.
+아래 조건을 지켜주세요.
+- 불릿(-) 3~5개 이내로 핵심만 압축
+- 각 불릿은 2줄 이내
+- 소재명·수치 직접 인용 유지
+- 개선 제안은 > 기호로 표기
+- 헤더 없이 불릿만 나열 (슬라이드에 바로 붙여넣을 수 있게)`;
+
+  window[`_rv_prompt_summary_${os}`]=summaryPrompt;
+  window[`_rv_prompt_best_${os}`]=bestPrompt;
+  window[`_rv_prompt_worst_${os}`]=worstPrompt;
+
+  // ─── 렌더
+  el.innerHTML=
+    card2(`📊 주차 비교표 (WoW)`,`${wA}주차 vs ${wB}주차 · ${campFilter}`,wowHtml,
+      `copyReviewWow('${os}')`,`rv_wow_copied_${os}`,
+      `copyReviewPrompt('summary','${os}')`,`rv_prompt_summary_copied_${os}`)+
+    card2(`🥧 USP별 ${convLabel} 비중`,`${periodLabel} · ${campFilter}`,uspPieHtml,
+      `copyReviewUsp('${os}')`,`rv_usp_copied_${os}`,null,null)+
+    card2(`📅 일자별 ${os==='mo'?`${convLabel} · ${effLabel2}`:'광고비 · 클릭수 · 매물상세 · CPA'}`,`${periodLabel} · ${campFilter}`,dailyHtml,
+      `copyReviewDaily('${os}')`,`rv_daily_copied_${os}`,null,null)+
+    (os==='mo'?
+      // ── Best/Worst 소재 필터 + 카드 (MO만)
+      `<div style="background:var(--s1);border:1px solid var(--acc2);border-radius:var(--r);padding:14px 18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;color:var(--acc2);white-space:nowrap">소재 필터</span>
+        <div style="position:relative">
+          <button onclick="toggleBwDrop('${os}')" id="rv_bw_btn_${os}"
+            style="background:var(--s2);border:1px solid var(--acc2);color:var(--text);font-family:var(--font);font-size:12px;padding:5px 28px 5px 10px;border-radius:5px;cursor:pointer;min-width:140px;text-align:left;position:relative">
+            <span id="rv_bw_label_${os}">${bwCampFilter==='전체'?'전체 캠페인':bwSelected.length===1?bwSelected[0].slice(0,20)+(bwSelected[0].length>20?'…':''):bwSelected.length+'개 선택'}</span>
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px">▼</span>
+          </button>
+          <div id="rv_bw_drop_${os}" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:240px;max-height:240px;overflow-y:auto;background:var(--s1);border:1px solid var(--acc2);border-radius:6px;z-index:999;padding:6px 0;box-shadow:0 4px 16px rgba(0,0,0,.3)">
+            ${bwCamps.map(c=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--text);white-space:nowrap" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+              <input type="checkbox" class="rv_bw_cb_${os}" value="${c}" ${bwSelected.includes(c)?'checked':''} style="accent-color:var(--acc2);width:13px;height:13px;cursor:pointer;flex-shrink:0" onchange="handleBwCbChange('${os}',this)"/>
+              ${c==='전체'?'전체':c.length>35?c.slice(0,35)+'…':c}
+            </label>`).join('')}
+          </div>
+        </div>
+        <div style="position:relative">
+          <button onclick="toggleBwWkDrop('${os}')" id="rv_bw_wk_btn_${os}"
+            style="background:var(--s2);border:1px solid var(--acc2);color:var(--text);font-family:var(--font);font-size:12px;padding:5px 28px 5px 10px;border-radius:5px;cursor:pointer;min-width:120px;text-align:left;position:relative">
+            <span id="rv_bw_wk_label_${os}">${bwWkAll?'전체 주차':bwWkSelected.length===1?bwWkSelected[0]+'주차':bwWkSelected.length+'개 주차'}</span>
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px">▼</span>
+          </button>
+          <div id="rv_bw_wk_drop_${os}" style="display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:140px;max-height:240px;overflow-y:auto;background:var(--s1);border:1px solid var(--acc2);border-radius:6px;z-index:999;padding:6px 0;box-shadow:0 4px 16px rgba(0,0,0,.3)">
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--text)" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+              <input type="checkbox" class="rv_bw_wk_cb_${os}" value="0" ${bwWkAll?'checked':''} style="accent-color:var(--acc2);width:13px;height:13px;cursor:pointer" onchange="handleBwWkCbChange('${os}',this)"/>전체
+            </label>
+            ${allWeeksForBw.map(w=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--text)" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+              <input type="checkbox" class="rv_bw_wk_cb_${os}" value="${w}" ${!bwWkAll&&bwWkSelected.includes(w)?'checked':''} style="accent-color:var(--acc2);width:13px;height:13px;cursor:pointer" onchange="handleBwWkCbChange('${os}',this)"/>
+              ${w}주차
+            </label>`).join('')}
+          </div>
+        </div>
+        <button onclick="renderReviewCards('${os}')" style="background:var(--acc2);color:#fff;border:none;font-family:var(--font);font-size:11px;font-weight:700;padding:6px 14px;border-radius:6px;cursor:pointer;white-space:nowrap">적용</button>
+      </div>
+    </div>`+
+      card2(`🏆 Best Creative TOP5`,`${bwWkLabel} · ${bwCampFilter}`,bestHtml,
+        `copyReviewBest('${os}')`,`rv_best_copied_${os}`,
+        `copyReviewPrompt('best','${os}')`,`rv_prompt_best_copied_${os}`)+
+      card2(`⚠️ Worst Creative TOP5`,`${bwWkLabel} · ${bwCampFilter}`,worstHtml,
+        `copyReviewWorst('${os}')`,`rv_worst_copied_${os}`,
+        `copyReviewPrompt('worst','${os}')`,`rv_prompt_worst_copied_${os}`)
+    :'');
+
+  // hidden 저장
+  window[`_rv_wow_html_${os}`]=wowHtml;
+  window[`_rv_usp_html_${os}`]=uspPieHtml;
+  window[`_rv_daily_html_${os}`]=dailyHtml;
+  window[`_rv_best_html_${os}`]=bestHtml;
+  window[`_rv_worst_html_${os}`]=worstHtml;
+}
+
+function toggleBwWkDrop(os){
+  const drop=document.getElementById(`rv_bw_wk_drop_${os}`);
+  if(!drop)return;
+  const isOpen=drop.style.display==='block';
+  drop.style.display=isOpen?'none':'block';
+  if(!isOpen){
+    setTimeout(()=>{
+      const close=e=>{if(!drop.contains(e.target)&&e.target.id!==`rv_bw_wk_btn_${os}`){drop.style.display='none';document.removeEventListener('click',close);}};
+      document.addEventListener('click',close);
+    },0);
+  }
+}
+
+function handleBwWkCbChange(os,changed){
+  const allCbs=[...document.querySelectorAll(`.rv_bw_wk_cb_${os}`)];
+  if(changed.value==='0'){
+    if(changed.checked) allCbs.forEach(cb=>{if(cb.value!=='0')cb.checked=false;});
+    else changed.checked=true;
+  } else {
+    allCbs.forEach(cb=>{if(cb.value==='0')cb.checked=false;});
+    const anyChecked=allCbs.some(cb=>cb.value!=='0'&&cb.checked);
+    if(!anyChecked) allCbs.forEach(cb=>{if(cb.value==='0')cb.checked=true;});
+  }
+  const checked=allCbs.filter(cb=>cb.checked).map(cb=>parseInt(cb.value));
+  window[`_bw_wk_sel_${os}`]=checked;  // 즉시 저장
+  const lbl=document.getElementById(`rv_bw_wk_label_${os}`);
+  if(lbl){
+    if(checked.includes(0)||checked.length===0) lbl.textContent='전체 주차';
+    else if(checked.length===1) lbl.textContent=checked[0]+'주차';
+    else lbl.textContent=`${checked.length}개 주차`;
+  }
+}
+
+function handleBwCbChange(os,changed){
+  const allCbs=[...document.querySelectorAll(`.rv_bw_cb_${os}`)];
+  if(changed.value==='전체'){
+    if(changed.checked) allCbs.forEach(cb=>{if(cb.value!=='전체')cb.checked=false;});
+    else changed.checked=true;
+  } else {
+    allCbs.forEach(cb=>{if(cb.value==='전체')cb.checked=false;});
+    const anyChecked=allCbs.some(cb=>cb.value!=='전체'&&cb.checked);
+    if(!anyChecked) allCbs.forEach(cb=>{if(cb.value==='전체')cb.checked=true;});
+  }
+  const checked=allCbs.filter(cb=>cb.checked).map(cb=>cb.value);
+  window[`_bw_camp_sel_${os}`]=checked;  // 즉시 저장
+  const lbl=document.getElementById(`rv_bw_label_${os}`);
+  if(lbl){
+    if(checked.includes('전체')||checked.length===0) lbl.textContent='전체 캠페인';
+    else if(checked.length===1) lbl.textContent=checked[0].length>20?checked[0].slice(0,20)+'…':checked[0];
+    else lbl.textContent=`${checked.length}개 선택`;
+  }
+}
+
+function toggleBwDrop(os){
+  const drop=document.getElementById(`rv_bw_drop_${os}`);
+  if(!drop)return;
+  const isOpen=drop.style.display==='block';
+  drop.style.display=isOpen?'none':'block';
+  if(!isOpen){
+    // 드롭다운 외부 클릭 시 닫기
+    setTimeout(()=>{
+      const close=e=>{if(!drop.contains(e.target)&&e.target.id!==`rv_bw_btn_${os}`){drop.style.display='none';document.removeEventListener('click',close);}};
+      document.addEventListener('click',close);
+    },0);
+  }
+}
+
+function copyReviewPrompt(type,os){
+  const key=`_rv_prompt_${type}_${os}`;
+  const text=window[key]||'';
+  if(!text){alert('먼저 적용 버튼을 눌러 데이터를 불러와주세요.');return;}
+  const copiedId=`rv_prompt_${type}_copied_${os}`;
+  const show=()=>{const l=document.getElementById(copiedId);if(l){l.style.display='inline';setTimeout(()=>l.style.display='none',2500);}};
+  navigator.clipboard.writeText(text).then(show).catch(()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;left:-9999px;';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);show();});
+}
+
+
+function copyReviewWow(os){_copyReviewItem(`_rv_wow_html_${os}`,`rv_wow_copied_${os}`);}
+function copyReviewUsp(os){_copyReviewItem(`_rv_usp_html_${os}`,`rv_usp_copied_${os}`);}
+function copyReviewDaily(os){_copyReviewItem(`_rv_daily_html_${os}`,`rv_daily_copied_${os}`);}
+function copyReviewBest(os){_copyReviewItem(`_rv_best_html_${os}`,`rv_best_copied_${os}`);}
+function copyReviewWorst(os){_copyReviewItem(`_rv_worst_html_${os}`,`rv_worst_copied_${os}`);}
+function _copyReviewItem(htmlKey,copiedId){
+  const html=window[htmlKey]||'';
+  if(!html||html.includes('주세요')||html.includes('없음')){alert('복사할 데이터가 없습니다.');return;}
+  // thead 제거 — 데이터 행만 복사
+  const noHead=html.replace(/<thead>[\s\S]*?<\/thead>/gi,'');
+  const show=()=>{const l=document.getElementById(copiedId);if(l){l.style.display='inline';setTimeout(()=>l.style.display='none',2500);}};
+  try{
+    const ci=new ClipboardItem({'text/html':new Blob([noHead],{type:'text/html'}),'text/plain':new Blob([''],{type:'text/plain'})});
+    navigator.clipboard.write([ci]).then(show).catch(()=>_execCopy(noHead,show));
+  }catch(e){_execCopy(noHead,show);}
+}
+function _execCopy(html,cb){
+  const tmp=document.createElement('div');
+  tmp.style.cssText='position:fixed;left:-9999px;top:0;';
+  tmp.innerHTML=html;document.body.appendChild(tmp);
+  const r=document.createRange();r.selectNode(tmp);
+  const s=window.getSelection();s.removeAllRanges();s.addRange(r);
+  try{document.execCommand('copy');cb();}catch(e){alert('복사 실패. 표를 직접 선택해서 복사해주세요.');}
+  s.removeAllRanges();document.body.removeChild(tmp);
+}
+
+// ══════════════════════════════════════
 // AI 분석 프롬프트 탭
 // ══════════════════════════════════════
 function renderPrompt(os){
@@ -2343,6 +3098,7 @@ function renderTab(mainTab,subTab){
   else if(subTab==='adgroups')renderAdgroups(os);
   else if(subTab==='weekcompare')renderWeekCompare(os);
   else if(subTab==='budget')renderBudget(os);
+  else if(subTab==='review')renderReview(os);
   else if(subTab==='prompt')renderPrompt(os);
 }
 
@@ -2431,7 +3187,7 @@ document.querySelectorAll('.sub-tab').forEach(t=>{
       const p=document.getElementById(`${os}-${S.subTab}`);if(p)p.classList.add('active');
     });
     const filterBar=document.getElementById('filterBar');
-    filterBar.style.display=(S.subTab==='weekcompare'||S.subTab==='budget')?'none':'';
+    filterBar.style.display=(S.subTab==='weekcompare'||S.subTab==='budget'||S.subTab==='review')?'none':'';
     renderTab(S.mainTab,S.subTab);
   });
 });
