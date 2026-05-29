@@ -2374,25 +2374,30 @@ function renderReviewCards(os){
 
   const totalCre=creAll.length;
   const avgCost=creAll.reduce((s,d)=>s+d.cost,0)/Math.max(totalCre,1);
-  // 평균 광고비 이상 + CPI 있는 소재 우선 풀
-  let pool=creAll.filter(d=>d.cost>=avgCost&&d.cpi>0);
-  // 5개 미만이면 나머지에서 CPI 있는 소재로 채움
-  if(pool.length<5){
-    const poolNames=new Set(pool.map(d=>d.name));
-    const extra=creAll.filter(d=>d.cpi>0&&!poolNames.has(d.name))
-      .sort((a,b)=>b.cost-a.cost);
-    pool=[...pool,...extra].slice(0,Math.max(pool.length,5));
-  }
-  // 그래도 없으면 노출만 있어도 포함
-  if(pool.length<5){
-    const poolNames=new Set(pool.map(d=>d.name));
-    const extra=creAll.filter(d=>d.imp>0&&!poolNames.has(d.name))
-      .sort((a,b)=>b.cost-a.cost);
-    pool=[...pool,...extra];
-  }
 
-  const bestCre=[...pool].sort((a,b)=>a.cpi-b.cpi).slice(0,5);
-  const worstCre=[...pool].sort((a,b)=>b.cpi-a.cpi).slice(0,5);
+  // BEST: 평균 광고비 이상 + CPI 있는 소재, 부족하면 차순위로 보충
+  let bestPool=creAll.filter(d=>d.cost>=avgCost&&d.cpi>0);
+  if(bestPool.length<5){
+    const names=new Set(bestPool.map(d=>d.name));
+    const extra=creAll.filter(d=>d.cpi>0&&!names.has(d.name)).sort((a,b)=>b.cost-a.cost);
+    bestPool=[...bestPool,...extra];
+  }
+  if(bestPool.length<5){
+    const names=new Set(bestPool.map(d=>d.name));
+    const extra=creAll.filter(d=>d.imp>0&&!names.has(d.name)).sort((a,b)=>b.cost-a.cost);
+    bestPool=[...bestPool,...extra];
+  }
+  const bestCre=[...bestPool].sort((a,b)=>a.cpi-b.cpi).slice(0,5);
+
+  // WORST: 소진금액 무관, 노출 있는 소재 전체에서 CPI 높은 순 (BEST 소재 제외, 차순위 보충)
+  const bestNames=new Set(bestCre.map(d=>d.name));
+  const worstPool=creAll.filter(d=>d.imp>0&&d.cpi>0&&!bestNames.has(d.name)).sort((a,b)=>b.cpi-a.cpi);
+  // worstPool이 5개 미만이면 CPI=0(전환없음) 소재도 포함
+  const worstPoolFull=worstPool.length>=5?worstPool:[
+    ...worstPool,
+    ...creAll.filter(d=>d.imp>0&&d.cpi===0&&!bestNames.has(d.name)).sort((a,b)=>b.cost-a.cost)
+  ];
+  const worstCre=worstPoolFull.slice(0,5);
 
   const effLabel2=os==='mo'?'CPI':'CPA';
   const convLabel2=os==='mo'?'설치':'매물상세';
@@ -2404,7 +2409,9 @@ function renderReviewCards(os){
 
   const bwTableHtml=(data,hiColor,caption)=>{
     if(!data.length)return`<div style="color:var(--text3);font-size:12px">해당 조건의 소재 없음</div>`;
-    const footNote=`**평균 광고비 소진 이상 소재 중 ${effLabel2} ${caption} 소재 기준으로 ${data.length}종 선정 (미달 시 차순위 소재로 보충)`;
+    const footNote=caption==='우수'
+      ?`**평균 광고비 소진 이상 소재 중 ${effLabel2} 우수 소재 기준으로 ${data.length}종 선정 (미달 시 차순위 소재로 보충)`
+      :`**소진금액 무관, 노출 발생 소재 전체에서 ${effLabel2} 저조 소재 기준으로 ${data.length}종 선정 (Best 소재 제외)`;
     const rows=data.map(d=>`<tr>
       <td style="${bwCellL}">${d.name}</td>
       <td style="${bwCellL}">${d.usp}</td>
@@ -2427,7 +2434,7 @@ function renderReviewCards(os){
         <th style="${bwHeadStyle}">Click to Install</th>
       </tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td colspan="8" style="border:none;padding:6px 0;font-size:10px;color:#666;${font}">${footNote}</td></tr></tfoot>
+      <tfoot><tr><td colspan="8" style="border:none;padding:6px 0;font-size:10px;color:#94a3b8;${font}">${footNote}</td></tr></tfoot>
     </table>`;
   };
 
@@ -2583,8 +2590,8 @@ ${bestText2}
     card2(`📊 주차 비교표 (WoW)`,`${wA}주차 vs ${wB}주차 · ${campFilter}`,wowHtml,
       `copyReviewWow('${os}')`,`rv_wow_copied_${os}`,
       `copyReviewPrompt('summary','${os}')`,`rv_prompt_summary_copied_${os}`)+
-    card2(`🥧 USP별 ${convLabel} 비중`,`${periodLabel} · ${campFilter}`,uspPieHtml,
-      `copyReviewUsp('${os}')`,`rv_usp_copied_${os}`,null,null)+
+    (os==='mo'?card2(`🥧 USP별 ${convLabel} 비중`,`${periodLabel} · ${campFilter}`,uspPieHtml,
+      `copyReviewUsp('${os}')`,`rv_usp_copied_${os}`,null,null):'')+ 
     card2(`📅 일자별 ${os==='mo'?`${convLabel} · ${effLabel2}`:'광고비 · 클릭수 · 매물상세 · CPA'}`,`${periodLabel} · ${campFilter}`,dailyHtml,
       `copyReviewDaily('${os}')`,`rv_daily_copied_${os}`,null,null)+
     (os==='mo'?
