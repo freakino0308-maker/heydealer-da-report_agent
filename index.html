@@ -2493,7 +2493,9 @@ ${os==='mo'?`CTI(Click to Install) | ${Pct2(ctiA2)} | ${Pct2(ctiB2)} | ${ch2(cti
   const bestText2=bestCre.map((d,i)=>`${i+1}. [${d.name}]\n   USP: ${d.usp} / 광고비: ${N2(d.cost)} / ${convLabel}: ${N2(d.conv)} / ${effLabel2}: ${N2(d.cpi)} / CTR: ${(d.ctr*100).toFixed(2)}% / CTI: ${(d.cti*100).toFixed(2)}%`).join('\n')||'(없음)';
   const worstText2=worstCre.map((d,i)=>`${i+1}. [${d.name}]\n   USP: ${d.usp} / 광고비: ${N2(d.cost)} / ${convLabel}: ${N2(d.conv)} / ${effLabel2}: ${N2(d.cpi)} / CTR: ${(d.ctr*100).toFixed(2)}% / CTI: ${(d.cti*100).toFixed(2)}%`).join('\n')||'(없음)';
 
-  const baseCtx=`플랫폼: 네이버 GFA ${os==='mo'?'모바일':'PC'} | 캠페인: ${campFilter} | 기간: ${periodLabel}\n광고 목표: 인지도 및 트래픽(클릭 최적화) / CBO 자동입찰\n${os==='mo'?'전환 기준: AppsFlyer 인스톨(AF)':'전환 기준: GA4 매물상세 진입(VCD)'}`;
+  const toneRule=`\n\n[작성 톤앤매너 규칙 - 필독]\n- 어려운 한자어·전문용어 대신 광고주 친화적이고 직관적인 표현을 사용할 것\n  예) '보합세' → '비슷한 수준 유지' / '단가 악화' → '단가 상승' / '효율 저하' → '효율 하락' / '노출 감소' → '노출이 줄어듦'\n- 광고 운영 담당자가 광고주에게 직접 보고하는 말투로 작성\n- 수치 변화는 "~% 상승/하락" 형태로 명확하게 표현\n- PPT 요약본은 광고주가 바로 읽을 수 있는 수준으로 작성`;
+
+  const baseCtx=`플랫폼: 네이버 GFA ${os==='mo'?'모바일':'PC'} | 캠페인: ${campFilter} | 기간: ${periodLabel}\n광고 목표: 인지도 및 트래픽(클릭 최적화) / CBO 자동입찰\n${os==='mo'?'전환 기준: AppsFlyer 인스톨(AF)':'전환 기준: GA4 매물상세 진입(VCD)'}${toneRule}`;
 
   const summaryPrompt=`당신은 모바일 앱 광고 성과 분석 전문가입니다. 아래 데이터를 바탕으로 주간 Summary 코멘트를 작성해주세요.
 
@@ -2515,6 +2517,7 @@ ${dailyText2}
 - 주목할 특이사항 및 원인 추론
 - 운영 방향 제안 (> 기호로 액션 표기)
 불릿(-) 형식, 간결하게, 수치 직접 인용 필수.
+※ CTR·CTI·CVR 등 % 지표의 WoW 변화는 증감률(%) 대신 절대값 차이(%p)로 표기. 예) 0.11% → 0.13% = +0.02%p
 
 ---
 [PPT 요약본]
@@ -2541,6 +2544,7 @@ ${bestText2}
 - 고성과 원인 추론
 - > 향후 소재 기획 시 활용 포인트
 불릿(-) 형식, 소재명·수치 직접 인용 필수.
+※ CTR·CTI·CVR 등 % 지표의 WoW 변화는 증감률(%) 대신 절대값 차이(%p)로 표기. 예) 0.23% → 0.40% = +0.17%p
 
 ---
 [PPT 요약본]
@@ -2570,6 +2574,7 @@ ${bestText2}
 - 저성과 원인 추론 (GFA 지면 특성, CTR/CTI 관계 등 고려)
 - > 개선 방향 및 테스트 제안
 불릿(-) 형식, 소재명·수치 직접 인용 필수.
+※ CTR·CTI·CVR 등 % 지표의 WoW 변화는 증감률(%) 대신 절대값 차이(%p)로 표기. 예) 0.13% → 0.18% = +0.05%p
 
 ---
 [PPT 요약본]
@@ -3067,6 +3072,7 @@ function renderPrompt(os){
   L.push('   - 중기 검토 (전환 캠페인 전환 시 고려 사항)');
   L.push('');
   L.push('※ 각 항목 분석 시 근거가 되는 소재명 또는 수치를 직접 인용해주세요.');
+  L.push('※ CTR·CTI·CVR 등 % 지표의 이전 기간 대비 변화는 증감률(%) 대신 절대값 차이(%p)로 표기. 예) 0.23% → 0.27% = +0.04%p');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   const text=L.join('\n');
